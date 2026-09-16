@@ -1,0 +1,15 @@
+node_modules
+data
+database.json
+server.js
+lib
+tests
+scripts
+jc-android-app
+.wwebjs_auth
+.wwebjs_cache
+*.log
+*.bat
+preview-portal.html
+.env*
+!*.example

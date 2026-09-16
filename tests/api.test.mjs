@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createApp } from '../lib/app.js';
+import { passwordMatches } from '../lib/store.js';
+import { changesBetween, applyChanges } from '../src/utils/changes.js';
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),'jc-api-test-'));
+const legacy=path.join(directory,'legacy.json');
+const initial={employees:[{id:'a',name:'Admin',email:'admin@test.local',password:'test-password-123',role:'Administrador',status:'Activo'},{id:'t',name:'Tech',email:'tech@test.local',password:'test-password-123',role:'Técnico',status:'Activo',allowedSections:['tickets']},{id:'c',name:'Client',email:'client@test.local',password:'test-password-123',role:'Cliente',status:'Activo',clientId:'c1'}],clients:[{id:'c1',commercialName:'Prueba',phone:'111',address:'A'}],tickets:[],projects:[],auditLogs:[]};
+fs.writeFileSync(legacy,JSON.stringify(initial));
+const runtime=createApp({directory:path.join(directory,'data'),legacyFile:legacy,worker:false});
+const server=await new Promise(resolve=>{const s=runtime.app.listen(0,'127.0.0.1',()=>resolve(s));});
+const base=`http://127.0.0.1:${server.address().port}`;
+async function request(route,{method='GET',body,cookie,origin}={}){const r=await fetch(base+route,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),...(origin?{Origin:origin}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,cookie:r.headers.get('set-cookie')?.split(';')[0],body:await r.json()};}
+const login=await request('/api/auth/login',{method:'POST',body:{username:'admin',password:'test-password-123'}});
+const cookie=login.cookie;
+test('migration hashes credentials; authenticated response does not expose them',()=>{assert.equal(login.status,200);assert.ok(cookie);assert.equal(login.body.db.employees[0].password,undefined);assert.equal(login.body.db.employees[0].passwordHash,undefined);assert.ok(passwordMatches('test-password-123',runtime.store.get('employees')[0].passwordHash));assert.deepEqual(JSON.parse(fs.readFileSync(legacy)),initial);});
+test('database and backup API require authentication',async()=>{for(const route of ['/api/db','/api/backups','/api/auth/session'])assert.equal((await request(route)).status,401);});
+test('cross-origin modifications and whole-database overwrites fail',async()=>{assert.equal((await request('/api/db',{method:'PATCH',body:{changes:[]},cookie,origin:'https://evil.test'})).status,403);assert.equal((await request('/api/db',{method:'POST',body:{},cookie})).status,410);});
+test('field changes merge without overwriting concurrent unrelated updates; conflicts roll back',async()=>{
+  const before=initial.clients[0];
+  const edit=after=>request('/api/db',{method:'PATCH',cookie,body:{changes:[{collection:'clients',id:'c1',before,after}]}});
+  assert.equal((await edit({...before,phone:'222'})).status,200);
+  assert.equal((await edit({...before,address:'B'})).status,200);
+  assert.equal((await edit({...before,phone:'333'})).status,409);
+  const row=runtime.store.get('clients')[0];assert.equal(row.phone,'222');assert.equal(row.address,'B');
+});
+test('technician cannot change employees or execute backups without permission',async()=>{const tech=await request('/api/auth/login',{method:'POST',body:{username:'tech',password:'test-password-123'}});assert.equal((await request('/api/backups',{cookie:tech.cookie})).status,403);assert.equal((await request('/api/db',{method:'PATCH',cookie:tech.cookie,body:{changes:[{collection:'employees',id:'x',before:null,after:{id:'x',role:'Administrador'}}]}})).status,403);});
+test('backup request without installed agent does not report success or invent an archive',async()=>{const result=await request('/api/backups/request',{method:'POST',cookie,body:{clientId:'c1'}});assert.equal(result.status,409);assert.equal(runtime.store.jobs().length,0);});
+test('enrollment rejects external IP; package contains the actual engine and restore script',async()=>{
+ const payload={clientId:'c1',ip:'8.8.8.8',sourceDirs:['C:\\Data'],destinationPath:'D:\\Backup'};
+ assert.equal((await request('/api/backups/enroll',{method:'POST',cookie,body:payload})).status,400);
+ assert.equal((await request('/api/backups/enroll',{method:'POST',cookie,body:{...payload,ip:'26.1.2.3'}})).status,200);
+ const response=await fetch(base+'/api/backups/package/c1',{headers:{Cookie:cookie}});assert.equal(response.status,200);const zip=Buffer.from(await response.arrayBuffer());assert.ok(zip.includes(Buffer.from('backup_engine.py')));assert.ok(zip.includes(Buffer.from('restore_backup.py')));
+});
+test('new credentials can be decrypted from a different session',async()=>{const encrypted=await request('/api/vault/encrypt',{method:'POST',cookie,body:{text:'a-private-value'}});const second=await request('/api/auth/login',{method:'POST',body:{username:'admin',password:'test-password-123'}});const result=await request('/api/vault/decrypt',{method:'POST',cookie:second.cookie,body:{value:encrypted.body.value}});assert.equal(result.body.value,'a-private-value');});
+test('client account does not receive other client data',async()=>{const result=await request('/api/auth/login',{method:'POST',body:{username:'client',password:'test-password-123'}});assert.deepEqual(result.body.db.clients,[]);assert.deepEqual(result.body.db.auditLogs,[]);});
+test('frontend deltas retain unrelated optimistic changes',()=>{const before={clients:[{id:'a',name:'A',phone:'1'}]};const changes=changesBetween(before,{clients:[{id:'a',name:'B',phone:'1'}]});assert.equal(changes.length,1);assert.deepEqual(applyChanges({clients:[{id:'a',name:'A',phone:'2'}]},changes).clients[0],{id:'a',name:'B',phone:'2'});});
+test.after(async()=>{await new Promise(resolve=>server.close(resolve));runtime.close();});

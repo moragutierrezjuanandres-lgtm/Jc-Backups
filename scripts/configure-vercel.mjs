@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const input=process.argv[2];
+if(!input)throw new Error('Uso: node scripts/configure-vercel.mjs https://api.tudominio.com');
+const backend=new URL(input);
+if(backend.protocol!=='https:' || backend.username || backend.password || backend.search || backend.hash || backend.pathname!=='/' || /(^|\.)example\.(com|org|net)$/.test(backend.hostname))throw new Error('Indica el origen HTTPS real del backend, sin rutas ni credenciales.');
+const file=new URL('../vercel.json',import.meta.url);
+const config=JSON.parse(fs.readFileSync(file,'utf8'));
+config.rewrites[0].destination=backend.origin+'/api/:path*';
+fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');
+console.log('Proxy de Vercel configurado: '+backend.origin);

@@ -1,0 +1,23 @@
+{
+  "short_name": "JC Portal",
+  "name": "JC Services Enterprise Portal",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#000000",
+  "theme_color": "#0B132B",
+  "display": "standalone",
+  "orientation": "portrait"
+}

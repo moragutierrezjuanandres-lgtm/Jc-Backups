@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createApp } from '../lib/app.js';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const folder=path.resolve(root,'..','.qa');fs.mkdirSync(folder,{recursive:true});
+const original=JSON.parse(fs.readFileSync(path.join(root,'database.json'),'utf8'));
+original.employees=(original.employees||[]).map(({password,passwordHash,...employee})=>({...employee,password:'preview-only-2026'}));
+original.employees.unshift({id:'qa-admin',name:'Administrador',email:'preview@jc.local',password:'preview-only-2026',role:'Administrador',status:'Activo'});
+const legacy=path.join(folder,'preview-fixture.json');fs.writeFileSync(legacy,JSON.stringify(original));
+const runtime=createApp({directory:path.join(folder,'preview-data'),legacyFile:legacy,worker:false});
+runtime.app.listen(5010,'127.0.0.1',()=>console.log('Vista de revisión local: http://127.0.0.1:5010 (datos aislados, sin agentes activos)'));

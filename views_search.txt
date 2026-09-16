@@ -1,0 +1,20 @@
+﻿
+src\views\Clients.jsx:90:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\Clients.jsx:109:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\Clients.jsx:147:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\Clients.jsx:167:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\Clients.jsx:173:  const activeClient = selectedClient || db.clients[0];
+src\views\Clients.jsx:175:  const filteredClients = db.clients.filter(cli => 
+src\views\Clients.jsx:261:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\Clients.jsx:295:    const updatedClient = db.clients.find(c => c.id === activeClient.id);
+src\views\DailyAgenda.jsx:43:    const clientObj = db.clients.find(c => c.id === evtClient);
+src\views\DailyAgenda.jsx:225:                    {db.clients.map(c => (
+src\views\Dashboard.jsx:40:  const clientObj = isCliente ? db.clients.find(c => c.id === currentUser.clientId) : null;
+src\views\Projects.jsx:75:    const clientObj = db.clients.find(c => c.id === projClient);
+src\views\Projects.jsx:480:                    {db.clients.map(c => (
+src\views\Tickets.jsx:48:    const clientObj = db.clients.find(c => c.id === tckClient);
+src\views\Tickets.jsx:271:                    {db.clients.map(c => (
+src\views\UserManagement.jsx:330:                          const cli = db.clients.find(c => c.id === e.target.value);
+src\views\UserManagement.jsx:340:                        {db.clients.map(c => (
+
+

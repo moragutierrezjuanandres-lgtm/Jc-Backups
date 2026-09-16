@@ -1,0 +1,210 @@
+/* Dashboard Specific UI Elements */
+
+/* Top Metrics Bar */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(16, 20, 38, 0.65), rgba(10, 14, 28, 0.8));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  border-color: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.35);
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.5), 0 0 20px 2px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.12);
+}
+
+/* Removed the heavy left color bar (::before) for a cleaner, calmer, and more professional dashboard look. */
+
+.metric-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metric-value {
+  font-size: 1.75rem;
+  font-weight: 500; /* Lighter, cleaner font weight */
+  color: var(--text);
+  margin-top: 6px;
+  letter-spacing: -0.02em;
+}
+
+.metric-trend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.metric-trend.up { color: var(--success); }
+.metric-trend.down { color: var(--danger); }
+
+/* Dashboard Sections */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Activity Feed */
+.activity-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-item {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-text {
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.activity-text strong {
+  font-weight: 500;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Checklist and task items */
+.agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agenda-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast);
+}
+
+.agenda-item:hover {
+  border-color: var(--text-muted);
+}
+
+.agenda-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agenda-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-xs);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+.agenda-checkbox.checked {
+  background-color: var(--success);
+  border-color: var(--success);
+}
+
+.agenda-title {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.agenda-title.done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.agenda-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* User Productivity summary styles */
+.productivity-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.productivity-circle-container {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.productivity-value-text {
+  position: absolute;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}

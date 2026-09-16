@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* IBM Carbon Fonts */
+  --font-sans: 'IBM Plex Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-title: 'IBM Plex Sans', 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Theme: IBM Carbon Enterprise Dark / Light Palette */
+  --background-h: 220;
+  --background-s: 25%;
+  --background-l: 7%;
+  --background: #0d1117;
+
+  --card-h: 220;
+  --card-s: 20%;
+  --card-l: 12%;
+  --card: #161f2e;
+  --card-hover: #1c283c;
+
+  --border-h: 220;
+  --border-s: 15%;
+  --border-l: 22%;
+  --border: rgba(255, 255, 255, 0.12);
+
+  --text-h: 0;
+  --text-s: 0%;
+  --text-l: 95%;
+  --text: #f4f4f4;
+
+  --text-muted-h: 220;
+  --text-muted-s: 10%;
+  --text-muted-l: 70%;
+  --text-muted: #a8b2c1;
+
+  /* IBM Primary Colors */
+  --primary-h: 217;
+  --primary-s: 98%;
+  --primary-l: 53%;
+  --primary: #0f62fe; /* IBM Carbon Primary Blue */
+  --primary-hover: #0043ce; /* IBM Carbon Hover Blue */
+  --primary-glow: rgba(15, 98, 254, 0.2);
+
+  --ibm-banner-bg: #edf5ff;
+  --ibm-banner-text: #161616;
+
+  --secondary-h: 215;
+  --secondary-s: 16%;
+  --secondary-l: 47%;
+  --secondary: #525252;
+
+  --success-h: 142;
+  --success-s: 70%;
+  --success-l: 45%;
+  --success: #198038;
+
+  --warning-h: 38;
+  --warning-s: 92%;
+  --warning-l: 50%;
+  --warning: #f1c21b;
+
+  --danger-h: 0;
+  --danger-s: 84%;
+  --danger-l: 60%;
+  --danger: #da1e28;
+
+  --info-h: 217;
+  --info-s: 98%;
+  --info-l: 53%;
+  --info: #0f62fe;
+
+  /* Borders & Shadows - Crisp IBM Carbon style */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(15, 98, 254, 0.25);
+
+  /* Transitions */
+  --transition-fast: 0.12s ease-out;
+  --transition-normal: 0.2s ease-out;
+  --transition-slow: 0.35s ease-out;
+
+  /* Navigation Dimensions */
+  --sidebar-width: 250px;
+  --mobile-nav-height: 60px;
+}
+
+/* Light Theme Overrides (Clean IBM Enterprise Light) */
+[data-theme='light'] {
+  --background: #f4f4f4;
+  --card: #ffffff;
+  --card-hover: #f0f4f8;
+  --border: #e0e0e0;
+  --text: #161616;
+  --text-muted: #525252;
+  --primary: #0f62fe;
+  --primary-hover: #0043ce;
+  --primary-glow: rgba(15, 98, 254, 0.12);
+  --ibm-banner-bg: #edf5ff;
+  --ibm-banner-text: #161616;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 16px rgba(15, 98, 254, 0.15);
+}

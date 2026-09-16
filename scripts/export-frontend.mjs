@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const destination=path.resolve(root,'..','_deploy','jc-vercel-frontend');
+fs.mkdirSync(destination,{recursive:true});
+for(const name of ['src','public','index.html','vite.config.js','vercel.json'])fs.cpSync(path.join(root,name),path.join(destination,name),{recursive:true});
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json')));
+const frontend={name:'jc-enterprise-frontend',version:'2.0.0',private:true,type:'module',scripts:{dev:'vite',build:'vite build',preview:'vite preview'},engines:{node:'24.x'},dependencies:{react:pkg.dependencies.react,'react-dom':pkg.dependencies['react-dom']},devDependencies:pkg.devDependencies};
+fs.writeFileSync(path.join(destination,'package.json'),JSON.stringify(frontend,null,2));
+const config=JSON.parse(fs.readFileSync(path.join(destination,'vercel.json')));config.installCommand='npm install';
+fs.writeFileSync(path.join(destination,'vercel.json'),JSON.stringify(config,null,2));
+fs.writeFileSync(path.join(destination,'.gitignore'),'node_modules/\ndist/\n.vercel/\n.env*\n');
+fs.copyFileSync(path.join(root,'VERCEL.md'),path.join(destination,'README.md'));
+console.log(destination);
