@@ -1,5 +1,7 @@
 # Publicar JC Enterprise en Vercel
 
+> La configuración actual utiliza API en Vercel y Neon. Consulta [NUBE.md](NUBE.md) para publicarla. El esquema con un servidor externo y túnel descrito debajo es la alternativa anterior; no ejecutar `configure-vercel.mjs` en el despliegue cloud.
+
 ## Arquitectura preparada
 
 ```text
@@ -120,3 +122,6 @@ Después de editar el portal: compile, ejecute las pruebas y vuelva a ejecutar `
 - Túneles con Cloudflare: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-local-tunnel/
 
 La plantilla incluye `api-jc.example.com` como marcador. No se ha publicado ningún sitio ni configurado ningún dominio real automáticamente.
+# Actualización de datos y dominio
+
+Para esta instalación, consulta primero [ACTUALIZACION.md](ACTUALIZACION.md). La base debe quedar fuera del repositorio en `C:/ProgramData/JCEnterprise/data`. El dominio del frontend es `jcevnzl.space`; falta conectar un origen HTTPS real para la API. No desplegar usando la URL de ejemplo.
