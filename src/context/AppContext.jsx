@@ -1334,7 +1334,7 @@ export function AppProvider({ children }) {
   };
 
   // --- SERVICE REPORTS CRUD ---
-  const addServiceReport = (report) => {
+  const addServiceReport = async (report) => {
     const now = new Date();
     const localDateStr = now.getFullYear() + '-' + 
       String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -1353,9 +1353,10 @@ export function AppProvider({ children }) {
     const updatedReports = [...(db.serviceReports || []), newReport];
     let nextDb = { ...db, serviceReports: updatedReports };
     nextDb = logActivity('Reporte de Servicio Creado', `Se creó el reporte de servicio ID ${newReport.id} para el cliente "${newReport.clientName}"`, currentUser, nextDb);
-    updateDbState(nextDb);
+    const saved = await updateDbState(nextDb);
+    if (!saved) throw new Error('No se pudo guardar el reporte. Revisa la conexión e inténtalo de nuevo.');
     addNotification(`Nuevo reporte de servicio creado para ${newReport.clientName}`);
-    return newReport.id;
+    return newReport;
   };
 
   const updateServiceReport = (reportId, updates) => {

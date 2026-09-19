@@ -20,6 +20,7 @@
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "jspdf": "^4.2.1",
     "micromatch": "^4.0.8",
     "pg": "^8.23.0",
     "qrcode-terminal": "^0.12.0",

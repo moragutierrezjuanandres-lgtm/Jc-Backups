@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { AppContext } from '../context/AppContext';
 import Modal from '../components/Modal';
 import ImageLightbox from '../components/ImageLightbox';
+import ReportShareModal from '../components/ReportShareModal';
 
 // Sleek SVG Icons replacing emojis
 const ReportIcon = () => (
@@ -122,6 +123,9 @@ export default function ServiceReports() {
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
+  const [shareReport, setShareReport] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
   const [lightboxImage, setLightboxImage] = useState(null);
   const [linkTicketReportId, setLinkTicketReportId] = useState(null);
   const [linkTicketSelectedImage, setLinkTicketSelectedImage] = useState('');
@@ -266,8 +270,9 @@ export default function ServiceReports() {
     });
   };
 
-  const handleCreateReport = (e) => {
+  const handleCreateReport = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!selectedClientId || !workDetails.trim()) {
       alert('Por favor selecciona un cliente y detalla el trabajo realizado.');
       return;
@@ -279,7 +284,10 @@ export default function ServiceReports() {
     // Convert datetime-local YYYY-MM-DDTHH:MM to YYYY-MM-DD HH:MM
     const formattedDateTime = reportDateTime.replace('T', ' ');
 
-    addServiceReport({
+    setSaving(true);
+    setFormError('');
+    try {
+    const savedReport = await addServiceReport({
       clientId: selectedClientId,
       clientName: client.commercialName,
       workDetails: workDetails.trim(),
@@ -294,7 +302,9 @@ export default function ServiceReports() {
     setReportImages([]);
     setReportDateTime(getLocalDateTimeString());
     resetOcrState();
-    alert('Reporte de servicio guardado exitosamente.');
+    setShareReport(savedReport);
+    } catch (err) { setFormError(err.message); }
+    finally { setSaving(false); }
   };
 
   const handleDeleteReport = (reportId) => {
@@ -397,10 +407,11 @@ export default function ServiceReports() {
   };
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="service-reports">
+      <div className="page-heading"><div><span className="eyebrow">ATENCIÓN AL CLIENTE</span><h1>Reportes de servicio</h1><p className="muted">Registra el trabajo y entrega al cliente su reporte en PDF.</p></div></div>
       
       {/* Upper Panel: New Report registration & OCR */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="report-editor-grid">
         
         {/* Form Column */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -562,8 +573,9 @@ export default function ServiceReports() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              Guardar Reporte de Servicio
+            {formError && <p className="notice error" role="alert">{formError}</p>}
+            <button type="submit" disabled={saving} className="btn btn-primary" style={{ width: '100%' }}>
+              {saving ? 'Guardando reporte…' : 'Guardar y preparar PDF'}
             </button>
           </form>
         </div>
@@ -685,7 +697,8 @@ export default function ServiceReports() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div className="report-actions">
+                    <button className="btn btn-primary" onClick={() => setShareReport(rep)}>PDF / WhatsApp</button>
                     <button
                       className="btn btn-secondary"
                       onClick={() => handleOpenEditModal(rep)}
@@ -1019,6 +1032,7 @@ export default function ServiceReports() {
         </Modal>
       )}
 
+      {shareReport && <ReportShareModal report={shareReport} onClose={() => setShareReport(null)} />}
     </div>
   );
 }

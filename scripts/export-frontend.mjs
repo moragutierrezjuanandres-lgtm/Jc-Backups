@@ -8,7 +8,7 @@ for(const name of ['src','public','api','index.html','vite.config.js','vercel.js
 fs.mkdirSync(path.join(destination,'lib'),{recursive:true});
 for(const name of ['cloud-app.js','cloud-import.js','postgres.js','auth.js','access.js','records.js'])fs.copyFileSync(path.join(root,'lib',name),path.join(destination,'lib',name));
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json')));
-const frontend={name:'jc-enterprise-cloud',version:'2.1.0',private:true,type:'module',scripts:{dev:'vite',build:'vite build',preview:'vite preview'},engines:{node:'24.x'},dependencies:{react:pkg.dependencies.react,'react-dom':pkg.dependencies['react-dom'],express:pkg.dependencies.express,pg:pkg.dependencies.pg},devDependencies:Object.fromEntries(Object.entries(pkg.devDependencies).filter(([name])=>name!=='@electric-sql/pglite'))};
+const frontend={name:'jc-enterprise-cloud',version:'2.1.0',private:true,type:'module',scripts:{dev:'vite',build:'vite build',preview:'vite preview'},engines:{node:'24.x'},dependencies:{react:pkg.dependencies.react,'react-dom':pkg.dependencies['react-dom'],express:pkg.dependencies.express,pg:pkg.dependencies.pg,jspdf:pkg.dependencies.jspdf},devDependencies:Object.fromEntries(Object.entries(pkg.devDependencies).filter(([name])=>name!=='@electric-sql/pglite'))};
 fs.writeFileSync(path.join(destination,'package.json'),JSON.stringify(frontend,null,2));
 const config=JSON.parse(fs.readFileSync(path.join(destination,'vercel.json')));config.installCommand='npm install';
 fs.writeFileSync(path.join(destination,'vercel.json'),JSON.stringify(config,null,2));

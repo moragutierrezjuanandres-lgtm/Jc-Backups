@@ -547,6 +547,7 @@ export default function JcView() {
     try {
       const params = new URLSearchParams(window.location.search);
       const sub = params.get('subtab');
+      if (sub === 'reports' || sub === 'servicio') return 'reports';
       if (sub === 'backups' || sub === 'respaldos') return 'backups';
       if (sub === 'servers' || sub === 'servidores') return 'servers';
       if (sub === 'tickets' || sub === 'estado' || sub === 'reportes') return 'estadoMensual';
@@ -557,7 +558,7 @@ export default function JcView() {
   return (
     <div className="page-container" style={{ padding: 0 }}>
       {/* Top Tabs Bar */}
-      <div style={{ 
+      <div className="workspace-tabs" style={{
         display: 'flex', 
         flexWrap: 'wrap',
         gap: '12px', 

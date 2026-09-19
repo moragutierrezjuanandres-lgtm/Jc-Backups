@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppContext';
 import Modal from '../components/Modal';
+import ServiceReports from './ServiceReports';
 
 export default function Analytics() {
   const { 
@@ -494,6 +495,7 @@ ORDER BY Cantidad DESC;`;
 
       {/* Subtab Navigation Selector */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '24px', overflowX: 'auto' }}>
+        <button type="button" onClick={() => setActiveSubTab('service')} className={`btn ${activeSubTab === 'service' ? 'btn-primary' : 'btn-secondary'}`} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>Reportes de servicio</button>
         <button
           type="button"
           onClick={() => setActiveSubTab('kpis')}
@@ -513,6 +515,7 @@ ORDER BY Cantidad DESC;`;
       </div>
 
       {/* ───────────────────────────────────────────── */}
+      {activeSubTab === 'service' && <ServiceReports />}
       {/* TAB 1: METRICS & KPIS                         */}
       {/* ───────────────────────────────────────────── */}
       {activeSubTab === 'kpis' && (
