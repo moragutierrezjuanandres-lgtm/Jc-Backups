@@ -112,6 +112,7 @@ export default function ServiceReports() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientSearchText, setClientSearchText] = useState('');
   const [workDetails, setWorkDetails] = useState('');
+  const [authorizedBy, setAuthorizedBy] = useState('');
   const [reportDateTime, setReportDateTime] = useState(getLocalDateTimeString());
   const [reportImages, setReportImages] = useState([]); // array of base64 strings
   
@@ -137,6 +138,7 @@ export default function ServiceReports() {
   const [editClientId, setEditClientId] = useState('');
   const [editClientSearchText, setEditClientSearchText] = useState('');
   const [editWorkDetails, setEditWorkDetails] = useState('');
+  const [editAuthorizedBy, setEditAuthorizedBy] = useState('');
   const [editDateTime, setEditDateTime] = useState('');
   const [editImages, setEditImages] = useState([]);
 
@@ -291,6 +293,7 @@ export default function ServiceReports() {
       clientId: selectedClientId,
       clientName: client.commercialName,
       workDetails: workDetails.trim(),
+      authorizedBy: authorizedBy.trim(),
       images: reportImages,
       createdAt: formattedDateTime
     });
@@ -299,6 +302,7 @@ export default function ServiceReports() {
     setSelectedClientId('');
     setClientSearchText('');
     setWorkDetails('');
+    setAuthorizedBy('');
     setReportImages([]);
     setReportDateTime(getLocalDateTimeString());
     resetOcrState();
@@ -319,6 +323,7 @@ export default function ServiceReports() {
     setEditClientId(rep.clientId);
     setEditClientSearchText('');
     setEditWorkDetails(rep.workDetails);
+    setEditAuthorizedBy(rep.authorizedBy || '');
     
     // Format YYYY-MM-DD HH:MM to YYYY-MM-DDTHH:MM
     const isoDateTime = rep.createdAt ? rep.createdAt.replace(' ', 'T') : getLocalDateTimeString();
@@ -364,6 +369,7 @@ export default function ServiceReports() {
       clientId: editClientId,
       clientName: client.commercialName,
       workDetails: editWorkDetails.trim(),
+      authorizedBy: editAuthorizedBy.trim(),
       createdAt: editDateTime.replace('T', ' '),
       images: editImages
     });
@@ -562,6 +568,11 @@ export default function ServiceReports() {
 
             {/* Work Details */}
             <div className="form-group">
+              <label className="form-label" htmlFor="report-authorized-by">Supervisado o autorizado por</label>
+              <input id="report-authorized-by" className="form-input" value={authorizedBy} onChange={e => setAuthorizedBy(e.target.value)} placeholder="Nombre y cargo de la persona" maxLength={200} />
+              <p className="muted">Persona que supervisó o autorizó el trabajo.</p>
+            </div>
+            <div className="form-group">
               <label className="form-label">Detalles del Trabajo Realizado</label>
               <textarea
                 className="form-textarea"
@@ -694,6 +705,7 @@ export default function ServiceReports() {
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                       ID: {rep.id} | Creado por: <strong>{rep.createdBy}</strong> | Fecha: {rep.createdAt}
                     </div>
+                    <p className="muted">Supervisado o autorizado por: {rep.authorizedBy || 'No registrado'}</p>
                   </div>
                   
                   {/* Action Buttons */}
@@ -1012,6 +1024,10 @@ export default function ServiceReports() {
               </div>
 
               {/* Work Details */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-report-authorized-by">Supervisado o autorizado por</label>
+                <input id="edit-report-authorized-by" className="form-input" value={editAuthorizedBy} onChange={e => setEditAuthorizedBy(e.target.value)} placeholder="Nombre y cargo de la persona" maxLength={200} />
+              </div>
               <div className="form-group">
                 <label className="form-label">Detalles del Trabajo Realizado</label>
                 <textarea

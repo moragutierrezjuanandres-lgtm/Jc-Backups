@@ -38,7 +38,9 @@ export default function ReportShareModal({ report, onClose }) {
       <img src={logoUrl} alt="JC" width="72" height="72" />
       <div><strong>{report.clientName}</strong><p>RIF de JC: J-29391067-6</p><p>{report.createdAt} · {report.createdBy}</p></div>
     </div>
+    <p className="muted">Supervisado o autorizado por: <strong>{report.authorizedBy || 'No registrado'}</strong></p>
     <p className="report-work-preview">{report.workDetails}</p>
+    {report.images?.length > 0 && <div className="report-evidence-preview"><p className="muted">El PDF incluye {report.images.length} fotografía(s) como evidencias.</p><div>{report.images.map((src, index) => <img key={index} src={src} alt={`Evidencia ${index + 1}`} />)}</div></div>}
     {!prepared && !error && <p role="status">Preparando PDF…</p>}
     {error && <p className="notice error" role="alert">{error}</p>}
     {prepared && <>

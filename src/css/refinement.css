@@ -25,6 +25,9 @@
 .report-actions, .report-share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-actions .btn { font-size: 12px; }
 .report-share-actions { margin-top: 20px; }
+.report-evidence-preview { margin: 16px 0; }
+.report-evidence-preview > div { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.report-evidence-preview img { width: 90px; height: 90px; object-fit: contain; background: var(--background); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
 .report-document-summary { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; overflow-wrap: anywhere; }
 .report-document-summary img { object-fit: contain; flex-shrink: 0; border-radius: 8px; background: white; }
 .report-document-summary strong { font-size: 17px; }

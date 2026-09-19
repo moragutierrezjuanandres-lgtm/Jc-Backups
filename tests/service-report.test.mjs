@@ -16,3 +16,20 @@ test('long service reports continue onto multiple pages without losing the endin
   assert.ok(pdf.getNumberOfPages() > 2);
   assert.ok(pdf.output().includes('FINAL DEL REPORTE'));
 });
+test('PDF includes the person who supervised or authorized the work', () => {
+  const pdf = createServiceReportPdf({ ...report, authorizedBy: 'Maria Perez - Encargada' }, logo);
+  assert.ok(pdf.output().includes('Maria Perez - Encargada'));
+});
+test('every attached photo receives its own evidence page; reports without photos have no appendix', () => {
+  const photo = `data:image/png;base64,${Buffer.from(logo).toString('base64')}`;
+  const pdf = createServiceReportPdf({ ...report, images: [photo, photo] }, logo);
+  assert.equal(pdf.getNumberOfPages(), 3);
+  assert.ok(pdf.output().includes('Fotografia 1 de 2'));
+  assert.ok(pdf.output().includes('Fotografia 2 de 2'));
+  const plain = createServiceReportPdf(report, logo);
+  assert.equal(plain.getNumberOfPages(), 1);
+  assert.ok(!plain.output().includes('EVIDENCIAS'));
+});
+test('an unreadable photo reports an error instead of silently omitting evidence', () => {
+  assert.throws(() => createServiceReportPdf({ ...report, images: ['data:image/png;base64,invalid'] }, logo), /fotografía 1/i);
+});
