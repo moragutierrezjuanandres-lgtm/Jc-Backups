@@ -1,4 +1,43 @@
 /* Shared visual rhythm; the desktop navigation and page structure stay intact. */
+.enterprise-login.login-minimal { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-height: 100dvh; padding: 40px 20px; background: var(--background); }
+.login-identity { display: flex; align-items: center; gap: 12px; color: var(--text); font-size: 13px; font-weight: 600; letter-spacing: .1em; }
+.login-minimal .login-form-panel { width: 100%; max-width: 440px; padding: 36px; border: 1px solid var(--border); border-radius: 10px; }
+.login-minimal .login-form-panel form { max-width: none; gap: 20px; }
+.login-minimal .login-form-panel h2 { font-size: 26px; margin-bottom: 0; }
+.login-minimal .login-form-panel .eyebrow { display: none; }
+.login-minimal .login-form-panel label { font-size: 13px; }
+.login-minimal .login-form-panel small { font-size: 12px; line-height: 1.6; }
+.clients-workspace { padding-top: 28px !important; }
+.clients-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0 20px; border-bottom: 1px solid var(--border); }
+.clients-toolbar > div { flex-wrap: wrap; }
+.clients-toolbar .btn-secondary { border-color: transparent; background: transparent; }
+.clients-toolbar .btn-secondary:hover { background: var(--card-hover); border-color: var(--border); }
+.clients-workspace .card { border-radius: 8px; }
+.clients-workspace .card[style*="border-left"] { border-left: 1px solid var(--border) !important; border-top: 2px solid var(--primary); }
+.clients-workspace [style*="text-transform: uppercase"] { text-transform: none !important; letter-spacing: 0 !important; }
+.clients-workspace .card h3 { font-size: 16px !important; font-weight: 500 !important; }
+.clients-directory { align-items: start; }
+.clients-directory input { min-width: 0; }
+.client-list { padding-right: 4px; }
+.client-list [style*="cursor: pointer"] { padding: 16px !important; border-radius: 6px !important; }
+.client-list [style*="cursor: pointer"]:hover { border-color: var(--primary) !important; }
+.client-profile-header { gap: 24px; flex-wrap: wrap; }
+.client-profile-header h2 { flex-wrap: wrap; overflow-wrap: anywhere; font-size: 24px !important; }
+.client-profile-header > div { min-width: 0; }
+.client-profile-header > div:last-child { gap: 12px !important; }
+.client-profile-header > div:last-child > div:last-child { flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .login-minimal .login-form-panel { padding: 28px 22px; }
+  .clients-toolbar { gap: 12px; padding-top: 0; }
+  .clients-toolbar > div { width: 100%; gap: 8px; }
+  .clients-toolbar > div:first-child { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 4px; }
+  .clients-toolbar > div:first-child .btn { flex-shrink: 0; white-space: nowrap; }
+  .clients-toolbar > div:last-child .btn { flex: 1 1 auto; }
+  .client-list { max-height: 260px !important; }
+  .client-profile-header { align-items: flex-start !important; }
+  .client-profile-header > div:last-child { align-items: flex-start !important; width: 100%; padding-top: 14px; border-top: 1px solid var(--border); }
+  .client-profile-header > div:last-child > div { align-items: flex-start !important; }
+}
 :root { --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; }
 [data-theme='light'] { --background: #f5f7fa; --border: #e0e6ed; --text-muted: #607083; }
 .app-container { height: 100dvh; }

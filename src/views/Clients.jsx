@@ -1222,12 +1222,12 @@ export default function Clients() {
   });
 
   return (
-    <div className="page-container" style={{ padding: '0 24px 24px 24px' }}>
+    <div className="page-container clients-workspace" style={{ padding: '0 24px 24px 24px' }}>
       <div className="page-heading"><div><span className="eyebrow">GESTIÓN</span><h1>Clientes e infraestructura</h1><p className="muted">Información comercial, equipos, credenciales y continuidad operativa.</p></div></div>
       {showReportModal && <Modal onClose={() => setShowReportModal(false)} maxWidth="1000px"><div className="modal-header"><h2>Reporte de clientes</h2><p className="muted">{allClients.length} registrados · {activeClientsList.length} activos · {inactiveClientsList.length} inactivos · {potentialClientsList.length} potenciales</p></div><div className="table-wrapper"><table className="data-table"><thead><tr><th>Cliente</th><th>Razón social</th><th>RIF</th><th>Tipo</th><th>Estado</th><th>Teléfono</th></tr></thead><tbody>{allClients.map(c=><tr key={c.id}><td>{c.commercialName}</td><td>{c.businessName}</td><td>{c.rif}</td><td>{c.clientType}</td><td>{c.status}</td><td>{c.phone}</td></tr>)}</tbody></table></div><div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowReportModal(false)}>Cerrar</button><button className="btn btn-primary" onClick={()=>window.print()}>Imprimir reporte</button></div></Modal>}
       
       {/* Top Header Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '20px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+      <div className="clients-toolbar">
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -1238,7 +1238,7 @@ export default function Clients() {
             }}
             style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 500 }}
           >
-            Dashboard General
+            Resumen
           </button>
           <button
             type="button"
@@ -1296,7 +1296,7 @@ export default function Clients() {
             title="Sincronizar y actualizar datos desde el servidor"
           >
             <span style={{ display: 'inline-block', transform: isRefreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.5s ease' }}>
-              🔄
+              ↻
             </span>
             {isRefreshing ? 'Actualizando...' : 'Actualizar'}
           </button>
@@ -1307,7 +1307,7 @@ export default function Clients() {
             onClick={() => setShowReportModal(true)}
             style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 500 }}
           >
-            Generar Reporte de Clientes
+            Reporte de clientes
           </button>
 
           {canManage && clientSection !== 'Dashboard' && (
@@ -1947,7 +1947,7 @@ export default function Clients() {
 
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', marginTop: '12px' }}>
+        <div className="clients-directory" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', marginTop: '12px' }}>
           {/* Left Side: Client List Selector */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1983,7 +1983,7 @@ export default function Clients() {
               </div>
             </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '65vh', overflowY: 'auto' }}>
+          <div className="client-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '65vh', overflowY: 'auto' }}>
             {(() => {
               const groups = {};
               const individuals = [];
@@ -2105,7 +2105,7 @@ export default function Clients() {
         {activeClient && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Header info */}
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card client-profile-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span className="badge" style={{
                   marginBottom: '6px',
