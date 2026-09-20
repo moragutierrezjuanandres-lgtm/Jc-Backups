@@ -1223,7 +1223,7 @@ export default function Clients() {
 
   return (
     <div className="page-container clients-workspace" style={{ padding: '0 24px 24px 24px' }}>
-      <div className="page-heading"><div><span className="eyebrow">GESTIÓN</span><h1>Clientes e infraestructura</h1><p className="muted">Información comercial, equipos, credenciales y continuidad operativa.</p></div></div>
+      <div className="page-heading clients-heading"><div><span className="eyebrow">DIRECTORIO EMPRESARIAL</span><h1>Clientes</h1><p className="muted">Administra la información y los servicios de tus clientes.</p></div><span className="client-total">{allClients.length} clientes registrados</span></div>
       {showReportModal && <Modal onClose={() => setShowReportModal(false)} maxWidth="1000px"><div className="modal-header"><h2>Reporte de clientes</h2><p className="muted">{allClients.length} registrados · {activeClientsList.length} activos · {inactiveClientsList.length} inactivos · {potentialClientsList.length} potenciales</p></div><div className="table-wrapper"><table className="data-table"><thead><tr><th>Cliente</th><th>Razón social</th><th>RIF</th><th>Tipo</th><th>Estado</th><th>Teléfono</th></tr></thead><tbody>{allClients.map(c=><tr key={c.id}><td>{c.commercialName}</td><td>{c.businessName}</td><td>{c.rif}</td><td>{c.clientType}</td><td>{c.status}</td><td>{c.phone}</td></tr>)}</tbody></table></div><div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowReportModal(false)}>Cerrar</button><button className="btn btn-primary" onClick={()=>window.print()}>Imprimir reporte</button></div></Modal>}
       
       {/* Top Header Navigation Tabs */}
@@ -1319,9 +1319,9 @@ export default function Clients() {
       </div>
 
       {clientSection === 'Dashboard' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="clients-overview" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* KPI Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          <div className="client-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             
             {/* Card 1: Total Clientes */}
             <div className="card" style={{ padding: '20px', borderLeft: '4px solid var(--primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1409,7 +1409,7 @@ export default function Clients() {
 
           {/* Proyección Financiera y Metas de Crecimiento (+2% y +5%) */}
           {canSeeMoney && (
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="card client-finance" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
@@ -2009,6 +2009,10 @@ export default function Clients() {
                       {groups[grpName].map(cli => (
                         <div
                           key={cli.id}
+                          className={`client-directory-row ${activeClient?.id === cli.id ? 'selected' : ''}`}
+                          role="button" tabIndex={0}
+                          aria-pressed={activeClient?.id === cli.id}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedClient(cli); setRevealedCreds({}); } }}
                           onClick={() => {
                             setSelectedClient(cli);
                             setRevealedCreds({});
@@ -2056,6 +2060,10 @@ export default function Clients() {
                       {individuals.map(cli => (
                         <div
                           key={cli.id}
+                          className={`client-directory-row ${activeClient?.id === cli.id ? 'selected' : ''}`}
+                          role="button" tabIndex={0}
+                          aria-pressed={activeClient?.id === cli.id}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedClient(cli); setRevealedCreds({}); } }}
                           onClick={() => {
                             setSelectedClient(cli);
                             setRevealedCreds({});
@@ -2181,7 +2189,7 @@ export default function Clients() {
             </div>
 
             {/* Friendly Vertical Nav Bar & Interactive Quick Chips */}
-            <div style={{
+            <div className="client-section-navigation" style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
@@ -2195,16 +2203,15 @@ export default function Clients() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Ventana Técnica del Cliente</h4>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Información del cliente</h4>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Último Respaldo: <strong style={{ color: 'var(--success)' }}>{activeClient.lastBackupTime || '31/07/2026 14:15'}</strong> • IP VPN: <code style={{ color: 'var(--primary)' }}>{activeClient.infrastructure?.vpn?.ip || '26.186.172.165'}</code>
+                      Último respaldo: <strong>{activeClient.lastBackupTime || 'Sin registro'}</strong> · VPN: <code>{activeClient.infrastructure?.vpn?.ip || 'Sin configurar'}</code>
                     </span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <select
-                    className="form-select"
+                  <select aria-label="Sección de la ficha" className="form-select client-section-select"
                     value={activeSubTab}
                     onChange={(e) => {
                       setActiveSubTab(e.target.value);
@@ -2230,7 +2237,7 @@ export default function Clients() {
                         <option value="layout">Plano de Red 2D/3D ({activeClient.layout?.length || 0})</option>
                         <option value="files">Documentos y Archivos ({activeClient.files?.length || 0})</option>
                         <option value="visitas">Reportes de Visita y Calendario</option>
-                        <option value="backups">Respaldos (A:\Jce\Jc-Backups)</option>
+                        <option value="backups">Respaldos</option>
                       </>
                     )}
                     <option value="followUps">Bitácora de Seguimiento ({activeClient.followUps?.length || 0})</option>
@@ -2248,7 +2255,7 @@ export default function Clients() {
               </div>
 
               {/* Quick Navigation Chips */}
-              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingTop: '4px' }}>
+              <div className="client-section-tabs" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingTop: '4px' }}>
                 {[
                   { id: 'general', label: 'General' },
                   ...(activeClient.clientType !== 'Potencial' ? [
@@ -2358,14 +2365,14 @@ export default function Clients() {
             )}
 
             {activeSubTab === 'general' && activeClient.clientType !== 'Potencial' && (
-              <div className="grid-cols-2">
-                <div className="card">
-                  <h3 style={{ fontSize: '0.9375rem', marginBottom: '12px' }}>Datos Generales</h3>
+              <div className="client-general-layout">
+                <div className="card client-data-sheet">
+                  <h3 style={{ fontSize: '0.9375rem', marginBottom: '12px' }}>Datos de contacto y servicio</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8125rem' }}>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Dirección:</span> {activeClient.address}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Teléfonos:</span> {activeClient.phone}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Email:</span> {activeClient.email}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Representante:</span> {activeClient.contactPerson}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>Dirección</span> {activeClient.address || 'Sin registrar'}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>Teléfono</span> {activeClient.phone || 'Sin registrar'}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>Correo electrónico</span> {activeClient.email || 'Sin registrar'}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>Representante</span> {activeClient.contactPerson || 'Sin registrar'}</div>
                     <div><span style={{ color: 'var(--text-muted)' }}>Base de Datos (a2):</span> <span style={{ color: 'var(--info)', fontWeight: 600 }}>{activeClient.dbType || 'DBF'}</span></div>
                     {activeClient.serviceType && <div><span style={{ color: 'var(--text-muted)' }}>Tipo de Servicio:</span> <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{activeClient.serviceType}</span></div>}
                     {activeClient.contractStart && <div><span style={{ color: 'var(--text-muted)' }}>Inicio de Contrato:</span> {activeClient.contractStart}</div>}
@@ -2385,12 +2392,14 @@ export default function Clients() {
                   </div>
                 </div>
 
-                <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <span style={{ fontSize: '3rem', marginBottom: '12px' }}>🏢</span>
-                  <h4 style={{ color: 'var(--text)', marginBottom: '4px' }}>Ficha Unificada</h4>
-                  <p style={{ fontSize: '0.75rem', maxWidth: '280px' }}>
-                    Use las pestañas superiores para ver servidores activos, credenciales cifradas y documentos.
-                  </p>
+                <div className="card client-resources">
+                  <h3>Recursos del cliente</h3>
+                  {[
+                    ['servers', 'Servidores', activeClient.infrastructure?.servers?.length || 0],
+                    ['workstations', 'Puestos de trabajo', activeClient.infrastructure?.workstations?.length || 0],
+                    ['files', 'Documentos', activeClient.files?.length || 0],
+                    ['followUps', 'Seguimientos', activeClient.followUps?.length || 0]
+                  ].map(([section, label, count]) => <button key={section} type="button" onClick={() => { setActiveSubTab(section); setRevealedCreds({}); }}><span>{label}</span><strong>{count}</strong><span aria-hidden="true">→</span></button>)}
                 </div>
               </div>
             )}
@@ -2400,7 +2409,7 @@ export default function Clients() {
               <>
                 <div className="card">
                   <h3 style={{ fontSize: '0.9375rem', marginBottom: '12px' }}>Acceso Remoto (VPN)</h3>
-                  {activeClient.infrastructure.vpn ? (
+                  {activeClient.infrastructure?.vpn ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8125rem' }}>
                       <div><span style={{ color: 'var(--text-muted)' }}>Dirección IP/Gateway:</span> {activeClient.infrastructure.vpn.ip}</div>
                       <div><span style={{ color: 'var(--text-muted)' }}>Tipo de VPN:</span> {activeClient.infrastructure.vpn.type}</div>
@@ -2435,7 +2444,7 @@ export default function Clients() {
                         </tr>
                       </thead>
                       <tbody>
-                        {activeClient.infrastructure.servers && activeClient.infrastructure.servers.map((srv, idx) => (
+                        {activeClient.infrastructure?.servers && activeClient.infrastructure.servers.map((srv, idx) => (
                           <tr key={srv.id || idx}>
                             <td style={{ fontWeight: 500 }}>{srv.name}</td>
                             <td style={{ fontFamily: 'monospace' }}>{srv.ip}</td>
@@ -2495,7 +2504,7 @@ export default function Clients() {
                           </tr>
                         ))}
 
-                        {(!activeClient.infrastructure.servers || activeClient.infrastructure.servers.length === 0) && (
+                        {(!activeClient.infrastructure?.servers || activeClient.infrastructure.servers.length === 0) && (
                           <tr>
                             <td colSpan={canManage ? 7 : 6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No hay servidores registrados.</td>
                           </tr>

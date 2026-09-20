@@ -1,0 +1,66 @@
+.clients-workspace { max-width: 1500px; padding: 36px !important; gap: 24px; }
+.clients-heading { padding-bottom: 4px; }
+.clients-heading h1 { font-size: 32px !important; font-weight: 600 !important; letter-spacing: -.04em; }
+.clients-heading .eyebrow { font-size: 10px; letter-spacing: .14em; }
+.client-total { color: var(--text-muted); font-size: 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+.clients-toolbar { border: 0; padding: 0; gap: 18px; }
+.clients-toolbar > div:first-child { padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; gap: 2px !important; }
+.clients-toolbar > div:first-child .btn { font-size: 12px !important; min-height: 36px; padding: 8px 14px !important; }
+.clients-toolbar > div:first-child .btn-primary { background: var(--text); border-color: var(--text); color: var(--card); }
+.clients-toolbar > div:last-child .btn { font-size: 12px !important; }
+.clients-workspace .card { padding: 24px !important; border: 1px solid var(--border) !important; box-shadow: none; }
+.client-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; gap: 0 !important; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--card); }
+.clients-workspace .client-kpis > .card { border: 0 !important; border-right: 1px solid var(--border) !important; border-radius: 0; padding: 20px !important; }
+.clients-workspace .client-kpis > .card:last-child { border-right: 0 !important; }
+.client-kpis > .card > div:first-child { min-height: 34px; font-size: 12px !important; line-height: 1.5; color: var(--text-muted) !important; }
+.client-kpis > .card > div:nth-child(2) { line-height: 1.4; }
+.client-kpis span[style*="background-color"] { background: var(--background) !important; color: var(--text-muted) !important; border-radius: 4px !important; }
+.client-finance > div[style*="grid-template-columns"] { gap: 0 !important; }
+.client-finance > div[style*="grid-template-columns"] > div { background: transparent !important; border: 0 !important; border-left: 1px solid var(--border) !important; border-radius: 0 !important; }
+.client-finance > div[style*="grid-template-columns"] > div:first-child { border-left: 0 !important; }
+.client-finance > div[style*="grid-template-columns"] > div > div { color: var(--text-muted) !important; }
+.client-finance > div[style*="grid-template-columns"] > div > div:nth-child(2) { color: var(--text) !important; font-size: 24px !important; letter-spacing: -.04em; }
+.clients-directory { gap: 28px !important; }
+.clients-directory > div:first-child { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px; overflow: hidden; }
+.clients-directory > div:first-child > .card { border: 0 !important; border-radius: 0; padding: 14px !important; }
+.clients-directory > div:first-child > .card > div:first-child { color: var(--text) !important; font-weight: 500 !important; font-size: 13px !important; }
+.client-list { gap: 0 !important; padding: 0 8px 8px; scrollbar-width: thin; }
+.client-list .client-directory-row { border: 1px solid transparent !important; border-bottom: 1px solid var(--border) !important; background: transparent !important; padding: 16px 12px !important; text-align: left; }
+.client-list .client-directory-row.selected { background: var(--card-hover) !important; border-color: var(--border) !important; box-shadow: inset 3px 0 var(--primary); }
+.client-list .client-directory-row > div { line-height: 1.6; }
+.client-profile-header { padding: 28px !important; }
+.client-profile-header h2 { font-size: 25px !important; font-weight: 500 !important; margin: 7px 0; }
+.client-profile-header .badge { background: var(--card-hover) !important; color: var(--text-muted) !important; font-size: 11px; }
+.client-section-navigation { background: transparent !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; margin-bottom: 0 !important; }
+.client-section-navigation > div:first-child { gap: 16px !important; }
+.client-section-navigation h4 { font-size: 15px !important; }
+.client-section-select { display: none; }
+.client-section-tabs { border-bottom: 1px solid var(--border); gap: 0 !important; padding: 0 !important; }
+.client-section-tabs button { border: 0 !important; border-radius: 0 !important; background: transparent !important; padding: 14px 12px !important; min-height: 44px; font-size: 12px !important; }
+.client-section-tabs button[style*="font-weight: bold"] { box-shadow: inset 0 -2px var(--primary); font-weight: 500 !important; }
+.client-general-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr); gap: 20px; }
+.client-data-sheet > div > div { display: grid; grid-template-columns: minmax(120px, .85fr) minmax(0, 1.15fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; overflow-wrap: anywhere; }
+.client-data-sheet > div > div:last-child { border-bottom: 0; }
+.client-data-sheet h3, .client-resources h3 { margin-bottom: 16px !important; }
+.client-resources button { display: flex; align-items: center; gap: 14px; width: 100%; border: 0; border-bottom: 1px solid var(--border); padding: 17px 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; font-size: 13px; }
+.client-resources button strong { margin-left: auto; font-weight: 500; }
+.client-resources button > span:last-child { color: var(--text-muted); }
+.client-resources button:hover { color: var(--primary); }
+.client-resources button:last-child { border-bottom: 0; }
+@media(max-width:1200px) { .client-kpis { grid-template-columns: repeat(3,minmax(0,1fr)) !important; } .client-general-layout { grid-template-columns: minmax(0,1fr); } }
+@media(max-width:768px) {
+  .clients-workspace.page-container { padding: 24px 16px !important; gap: 22px; }
+  .clients-heading h1 { font-size: 29px !important; }
+  .client-total { background: transparent; padding: 0; border: 0; }
+  .clients-toolbar > div:first-child { width: 100%; }
+  .clients-toolbar > div:first-child .btn { font-size: 11px !important; padding: 8px 10px !important; }
+  .client-kpis { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .clients-workspace .client-kpis > .card { padding: 16px !important; border-bottom: 1px solid var(--border) !important; }
+  .clients-workspace .client-kpis > .card:last-child { grid-column: 1 / -1; }
+  .client-finance > div[style*="grid-template-columns"] > div { border-left: 0 !important; border-bottom: 1px solid var(--border) !important; padding: 16px 0 !important; }
+  .clients-workspace .card { padding: 20px !important; }
+  .client-section-select { display: block; width: 100%; }
+  .client-section-navigation > div:first-child > div:last-child { width: 100%; flex-wrap: wrap; }
+  .client-section-tabs { display: none !important; }
+  .client-data-sheet > div > div { grid-template-columns: minmax(0,1fr); gap: 4px; }
+}
