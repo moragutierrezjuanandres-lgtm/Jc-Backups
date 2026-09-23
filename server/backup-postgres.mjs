@@ -1,0 +1,15 @@
+import {mkdirSync,statSync} from 'node:fs';
+import {join} from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {readConfig} from './self-hosted.mjs';
+const db=new URL(readConfig().connectionString);
+const directory='C:/ProgramData/JCEnterprise/self-hosted/backups';
+mkdirSync(directory,{recursive:true});
+const output=join(directory,`jc-portal-${new Date().toISOString().replace(/[:.]/g,'-')}.dump`);
+const bin='C:/ProgramData/JCEnterprise/postgres-runtime/pgsql/bin';
+const env={...process.env,PGPASSWORD:decodeURIComponent(db.password)};
+const dumped=spawnSync(join(bin,'pg_dump.exe'),['--host',db.hostname,'--port',db.port||'5432','--username',decodeURIComponent(db.username),'--dbname',db.pathname.slice(1),'--no-password','--format=custom','--file',output],{env,windowsHide:true,encoding:'utf8',timeout:300000});
+if(dumped.status!==0)throw new Error(`pg_dump falló (${dumped.status??dumped.error?.code}); no se verificó la copia.`);
+const listing=spawnSync(join(bin,'pg_restore.exe'),['--list',output],{windowsHide:true,encoding:'utf8',timeout:60000});
+if(listing.status!==0||!listing.stdout.includes('jc_collections'))throw new Error('No se pudo verificar el catálogo del archivo de respaldo.');
+console.log(JSON.stringify({backup:output,bytes:statSync(output).size,catalogVerified:true}));
