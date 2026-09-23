@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "installCommand": "PUPPETEER_SKIP_DOWNLOAD=true npm ci",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/api/:path*", "destination": "https://api.jcevnzl.space/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
