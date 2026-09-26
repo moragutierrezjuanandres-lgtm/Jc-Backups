@@ -8,6 +8,7 @@ import './css/components.css'
 import './css/enterprise.css'
 import './css/refinement.css'
 import './css/clients.css'
+import './css/backups.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -24,3 +24,8 @@ jc-android-app/local.properties
 
 .vercel
 .env*
+
+.tools/
+agent/dist/
+release/
+.superpowers/

@@ -1,0 +1,3 @@
+.backup-alert { border-left: 3px solid var(--danger, #d33); padding: 10px 12px; margin: 8px 0; background: var(--card); }
+.backup-status { display:inline-flex; align-items:center; gap:6px; font-size:12px; }
+.backup-status::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; }
