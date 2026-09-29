@@ -46,3 +46,14 @@ test('database rejects a third attempt',async()=>{
 });
 
 test.after(async()=>db.close());
+test('successful agent report is acknowledged pending independent verification without inventing a verified snapshot',async()=>{
+ const device='00000000-0000-4000-8000-000000000002';
+ await pool.query("INSERT INTO backup_devices(id,client_id,label) VALUES($1,'c1','Other')",[device]);
+ const run=await repo.enqueue(device,'manual:pending-verification',1);
+ const claimed=await repo.claim(device,new Date('2026-09-30T12:00:00Z'));
+ assert.equal(claimed.id,run.id);
+ const event={runId:run.id,attempt:1,sequence:2,kind:'result',payload:{exitCode:0,snapshotId:'reported-only'}};
+ assert.equal((await repo.appendEvent(device,event)).status,'verifying');
+ assert.equal((await repo.appendEvent(device,event)).status,'verifying');
+ assert.equal((await pool.query('SELECT * FROM backup_snapshots WHERE run_id=$1',[run.id])).rows.length,0);
+});

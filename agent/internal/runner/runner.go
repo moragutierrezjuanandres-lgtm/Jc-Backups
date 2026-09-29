@@ -16,7 +16,7 @@ import (
  "jcevnzl/backup-agent/internal/journal"
 )
 
-type Policy struct { ID string `json:"id"`; DeviceID string `json:"deviceId"`; Revision int `json:"revision"`; SourceDirs []string `json:"sourceDirs"`; Excludes []string `json:"excludes"`; Days []int `json:"days"`; Time string `json:"time"`; Timezone string `json:"timezone"`; RetentionSuccessfulCount int `json:"retentionSuccessfulCount"`; ConsistencyProfile string `json:"consistencyProfile"`; Compression string `json:"compression"` }
+type Policy struct { Enabled bool `json:"enabled"`; ID string `json:"id"`; DeviceID string `json:"deviceId"`; Revision int `json:"revision"`; SourceDirs []string `json:"sourceDirs"`; Excludes []string `json:"excludes"`; Days []int `json:"days"`; Time string `json:"time"`; Timezone string `json:"timezone"`; RetentionSuccessfulCount int `json:"retentionSuccessfulCount"`; ConsistencyProfile string `json:"consistencyProfile"`; Compression string `json:"compression"` }
 type Run struct { ID string `json:"id"`; DeviceID string `json:"deviceId"`; PolicyRevision int `json:"policyRevision"`; OccurrenceKey string `json:"occurrenceKey"`; Status string `json:"status"`; Attempt int `json:"attempt"`; LeaseUntil time.Time `json:"leaseUntil"` }
 type Repository struct { URL string `json:"url"`; Username string `json:"username"`; Password string `json:"password"`; Key string `json:"key"` }
 type Runner struct { ResticPath string; Repository Repository; CacheDir string; Timeout time.Duration }

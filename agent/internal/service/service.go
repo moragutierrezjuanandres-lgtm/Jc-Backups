@@ -39,7 +39,7 @@ func (s Service) step(ctx context.Context) {
  }
  if err:=api.Heartbeat(ctx);err!=nil {s.runOfflineDue(ctx,cfg,j);return}
  policy,err:=api.Policy(ctx);if err==nil && policy!=nil && (cfg.Policy==nil || cfg.Policy.Revision!=policy.Revision) {cfg.Policy=policy;_ = SaveConfig(s.ConfigPath,cfg)}
- if cfg.Policy==nil{return}
+ if cfg.Policy==nil||!cfg.Policy.Enabled{return}
  s.runOfflineDue(ctx,cfg,j)
  run,err:=api.Claim(ctx);if err!=nil||run==nil{return}
  key:=run.ID
@@ -47,7 +47,7 @@ func (s Service) step(ctx context.Context) {
  s.execute(ctx,cfg,j,key,run.Attempt)
 }
 func (s Service) runOfflineDue(ctx context.Context,cfg Config,j *journal.Journal) {
- if cfg.Policy==nil{return}
+ if cfg.Policy==nil||!cfg.Policy.Enabled{return}
  key,due:=latestOccurrence(*cfg.Policy,time.Now())
  if !due{return}
  state:=j.State(key)
