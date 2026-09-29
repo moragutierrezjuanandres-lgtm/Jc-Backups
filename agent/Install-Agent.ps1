@@ -4,6 +4,7 @@ $repo=Split-Path -Parent $PSScriptRoot
 $go=Join-Path $repo '..\.tools\go\bin\go.exe'
 if(-not (Test-Path $go)){ throw 'No se encontró Go en .tools; ejecute build.ps1 primero.' }
 $data=Join-Path $env:ProgramData 'JCEnterprise\backup-agent'; New-Item -ItemType Directory -Force -Path $data,$InstallRoot | Out-Null
+$old=Get-Process -Name 'jc-backup' -ErrorAction SilentlyContinue; if($old){ $old | Stop-Process -Force; Start-Sleep -Milliseconds 500 }
 $built=Join-Path $repo 'dist\jc-backup.exe'
 if(Test-Path $go){ & $go build -trimpath -ldflags '-s -w -H=windowsgui' -o (Join-Path $InstallRoot 'jc-backup.exe') (Join-Path $repo 'cmd\jc-backup'); if($LASTEXITCODE){throw 'No se pudo compilar el agente.'} }
 elseif(Test-Path $built){ Copy-Item $built (Join-Path $InstallRoot 'jc-backup.exe') -Force }
