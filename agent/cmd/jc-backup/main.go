@@ -25,12 +25,15 @@ func main(){
  restic:=flag.String("restic","restic.exe","Restic executable")
  journal:=flag.String("journal",filepath.Join(os.Getenv("ProgramData"),"JCEnterprise","backup-agent","journal.jsonl"),"journal path")
  cache:=flag.String("cache",filepath.Join(os.Getenv("ProgramData"),"JCEnterprise","backup-agent","cache"),"cache path")
+ serviceMode:=flag.Bool("service",false,"run without opening the interactive Isabella UI")
  flag.Parse()
  if *restic=="restic.exe" { *restic=filepath.Join(os.Getenv("ProgramData"),"JCEnterprise","backup-agent","restic.exe"); _=os.MkdirAll(filepath.Dir(*restic),0700); if _,err:=os.Stat(*restic);err!=nil{_ = os.WriteFile(*restic,resticBinary,0700)} }
  ctx,stop:=signal.NotifyContext(context.Background(),os.Interrupt,syscall.SIGTERM);defer stop()
- app,err:=ui.New(*config,*portal);if err!=nil{log.Fatal(err)}
- go func(){if err:=app.Serve(ctx);err!=nil{log.Printf("interfaz Isabella: %v",err)}}()
+ if !*serviceMode {
+  app,err:=ui.New(*config,*portal);if err!=nil{log.Fatal(err)}
+  go func(){if err:=app.Serve(ctx);err!=nil{log.Printf("interfaz Isabella: %v",err)}}()
+ }
  go func(){s:=service.Service{ConfigPath:*config,JournalPath:*journal,ResticPath:*restic,CacheDir:*cache};if err:=s.Run(ctx);err!=nil{log.Printf("servicio de respaldos: %v",err)}}()
- go func(){time.Sleep(700*time.Millisecond); _=exec.Command("rundll32","url.dll,FileProtocolHandler","http://127.0.0.1:18443").Start()}()
+ if !*serviceMode { go func(){time.Sleep(700*time.Millisecond); _=exec.Command("rundll32","url.dll,FileProtocolHandler","http://127.0.0.1:18443").Start()}() }
  <-ctx.Done()
 }
