@@ -1,6 +1,9 @@
 import { pathToFileURL } from 'node:url';
 import { createCloudApp } from '../lib/cloud-app.js';
 import { PostgresStore } from '../lib/postgres.js';
+import { BackupRepository } from '../lib/backup/repository.js';
+import { BackupAuth } from '../lib/backup/auth.js';
+import { provisionRepository, revokeRepository } from './backup-receiver/provision.mjs';
 
 export function readConfig(env=process.env) {
   if(!env.DATABASE_URL) throw new Error('DATABASE_URL es obligatoria.');
@@ -21,7 +24,15 @@ export function readConfig(env=process.env) {
 export async function startServer(config,store=new PostgresStore(config.connectionString)) {
   try {
     await store.pool.query('SELECT 1');
-    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:''});
+    let backupAuth=null,backupRepository=null,backupReceiverConfigured=false;
+    if(process.env.JC_BACKUP_STORAGE_ROOT&&process.env.JC_BACKUP_RESTIC&&process.env.JC_BACKUP_RECEIVER_URL){
+      const receiver={
+        provision:({clientId,deviceId})=>provisionRepository({clientId,deviceId,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT,resticBinary:process.env.JC_BACKUP_RESTIC,restServerBaseUrl:process.env.JC_BACKUP_RECEIVER_URL,vaultKey:config.vaultKey}),
+        revoke:({clientId,deviceId,repositoryId})=>revokeRepository({clientId,deviceId,repositoryId,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT})
+      };
+      backupAuth=new BackupAuth(store.pool,config.vaultKey,receiver); backupRepository=new BackupRepository(store.pool); backupReceiverConfigured=true;
+    }
+    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured});
     const server=await new Promise((resolve,reject)=>{
       const instance=app.listen(config.port,config.host,()=>resolve(instance));
       instance.once('error',reject);
