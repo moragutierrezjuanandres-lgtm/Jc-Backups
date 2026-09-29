@@ -32,6 +32,17 @@ export async function startServer(config,store=new PostgresStore(config.connecti
       };
       backupAuth=new BackupAuth(store.pool,config.vaultKey,receiver); backupRepository=new BackupRepository(store.pool); backupReceiverConfigured=true;
     }
+    // Keep portal enrollment and device management available even when the
+    // local Restic receiver is offline; backup execution reports a clear
+    // configuration error instead of hiding the entire module.
+    if(!backupAuth){
+      const unavailableReceiver={
+        provision:()=>{ throw Object.assign(new Error('Receptor de respaldos no configurado.'),{status:503}); },
+        revoke:async()=>{}
+      };
+      backupAuth=new BackupAuth(store.pool,config.vaultKey,unavailableReceiver);
+      backupRepository=new BackupRepository(store.pool);
+    }
     const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured});
     const server=await new Promise((resolve,reject)=>{
       const instance=app.listen(config.port,config.host,()=>resolve(instance));
