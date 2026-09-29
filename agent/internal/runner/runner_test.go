@@ -5,6 +5,7 @@ import (
  "os"
  "path/filepath"
  "testing"
+ "reflect"
 )
 
 func TestParseSummaryRequiresSnapshot(t *testing.T) {
@@ -22,7 +23,20 @@ func TestValidateSourcesRejectsRepositoryInsideSource(t *testing.T) {
 
 func TestBackupDoesNotInvokeShell(t *testing.T) {
  // Arguments, including shell punctuation, must be passed literally to Restic.
- args := backupArgs([]string{`C:\Data & More`}, []string{"*.tmp"})
- if len(args) < 5 || args[len(args)-1] != `C:\Data & More` { t.Fatalf("bad argv: %q", args) }
+ args := backupArgs(Policy{SourceDirs: []string{`C:\Data & More`}, Excludes: []string{"*.tmp"}})
+ if len(args) < 7 || args[len(args)-1] != `C:\Data & More` { t.Fatalf("bad argv: %q", args) }
  _ = context.Background()
+}
+
+func TestCompressionAndVSSPreserveLiteralPaths(t *testing.T) {
+ p := Policy{SourceDirs: []string{`C:\Data & More`}, Excludes: []string{"*.tmp"}, Compression: "max", ConsistencyProfile: "files-vss"}
+ want := []string{"backup", "--json", "--compression", "max", "--pack-size", "16", "--use-fs-snapshot", "--exclude", "*.tmp", `C:\Data & More`}
+ if got := backupArgs(p); !reflect.DeepEqual(got,want) { t.Fatalf("got %q want %q",got,want) }
+ args := backupArgs(Policy{SourceDirs: []string{`C:\Data`}})
+ if args[3] != "auto" { t.Fatalf("compression default: %q",args) }
+}
+
+func TestBackupRejectsDisabledCompressionBeforeExecuting(t *testing.T) {
+ result := (Runner{ResticPath: "does-not-exist"}).Backup(context.Background(),Run{},Policy{SourceDirs: []string{t.TempDir()},Compression:"off"})
+ if result.ErrorCode != "invalid_compression" { t.Fatalf("got %+v",result) }
 }

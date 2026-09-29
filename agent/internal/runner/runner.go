@@ -16,7 +16,7 @@ import (
  "jcevnzl/backup-agent/internal/journal"
 )
 
-type Policy struct { ID string `json:"id"`; DeviceID string `json:"deviceId"`; Revision int `json:"revision"`; SourceDirs []string `json:"sourceDirs"`; Excludes []string `json:"excludes"`; Days []int `json:"days"`; Time string `json:"time"`; Timezone string `json:"timezone"`; RetentionSuccessfulCount int `json:"retentionSuccessfulCount"`; ConsistencyProfile string `json:"consistencyProfile"` }
+type Policy struct { ID string `json:"id"`; DeviceID string `json:"deviceId"`; Revision int `json:"revision"`; SourceDirs []string `json:"sourceDirs"`; Excludes []string `json:"excludes"`; Days []int `json:"days"`; Time string `json:"time"`; Timezone string `json:"timezone"`; RetentionSuccessfulCount int `json:"retentionSuccessfulCount"`; ConsistencyProfile string `json:"consistencyProfile"`; Compression string `json:"compression"` }
 type Run struct { ID string `json:"id"`; DeviceID string `json:"deviceId"`; PolicyRevision int `json:"policyRevision"`; OccurrenceKey string `json:"occurrenceKey"`; Status string `json:"status"`; Attempt int `json:"attempt"`; LeaseUntil time.Time `json:"leaseUntil"` }
 type Repository struct { URL string `json:"url"`; Username string `json:"username"`; Password string `json:"password"`; Key string `json:"key"` }
 type Runner struct { ResticPath string; Repository Repository; CacheDir string; Timeout time.Duration }
@@ -26,8 +26,8 @@ func (r Runner) Backup(ctx context.Context, run Run, policy Policy) journal.Resu
  if policy.ConsistencyProfile!="" && policy.ConsistencyProfile!="files" && policy.ConsistencyProfile!="files-vss" {return journal.Result{ExitCode:-1,ErrorCode:"profile_unavailable",Message:"database profile is not configured and verified"}}
  timeout:=r.Timeout;if timeout<=0{timeout=12*time.Hour}
  ctx,cancel:=context.WithTimeout(ctx,timeout);defer cancel()
- args:=backupArgs(policy.SourceDirs,policy.Excludes)
- if policy.ConsistencyProfile=="files-vss" {args=append([]string{"backup","--json","--use-fs-snapshot"},args[2:]...)}
+ if policy.Compression!="" && policy.Compression!="auto" && policy.Compression!="max" {return journal.Result{ExitCode:-1,ErrorCode:"invalid_compression",Message:"compression must be auto or max"}}
+ args:=backupArgs(policy)
  cmd:=exec.CommandContext(ctx,r.ResticPath,args...)
  cmd.Env=append(os.Environ(),"RESTIC_REPOSITORY="+r.Repository.URL,"RESTIC_PASSWORD="+r.Repository.Key,"RESTIC_REST_USERNAME="+r.Repository.Username,"RESTIC_REST_PASSWORD="+r.Repository.Password)
  if r.CacheDir!="" {cmd.Env=append(cmd.Env,"RESTIC_CACHE_DIR="+r.CacheDir)}
@@ -38,10 +38,12 @@ func (r Runner) Backup(ctx context.Context, run Run, policy Policy) journal.Resu
  return result
 }
 
-func backupArgs(sources, excludes []string) []string {
- args:=[]string{"backup","--json"}
- for _,x:=range excludes {args=append(args,"--exclude",x)}
- return append(args,sources...)
+func backupArgs(policy Policy) []string {
+ compression:=policy.Compression;if compression=="" {compression="auto"}
+ args:=[]string{"backup","--json","--compression",compression,"--pack-size","16"}
+ if policy.ConsistencyProfile=="files-vss" {args=append(args,"--use-fs-snapshot")}
+ for _,x:=range policy.Excludes {args=append(args,"--exclude",x)}
+ return append(args,policy.SourceDirs...)
 }
 func parseOutput(output []byte, code int) journal.Result {
  result:=journal.Result{ExitCode:code}

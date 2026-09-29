@@ -8,14 +8,15 @@ import bcrypt from 'bcryptjs';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function repositoryIdentity(clientId, deviceId) {
-  if (!UUID.test(clientId || '')) throw new Error('invalid clientId');
-  if (!UUID.test(deviceId || '')) throw new Error('invalid deviceId');
-  return `${clientId.toLowerCase()}_${deviceId.toLowerCase()}`;
+  if (typeof clientId !== 'string' || !clientId.trim() || clientId.length > 200 || /[\x00-\x1f\x7f/\\]/.test(clientId) || clientId === '.' || clientId === '..') throw new Error('invalid clientId');
+  if (typeof deviceId !== 'string' || !UUID.test(deviceId)) throw new Error('invalid deviceId');
+  return `${createHash('sha256').update(clientId).digest('hex')}_${deviceId.toLowerCase()}`;
 }
 
 export function repositoryPath(storageRoot, repositoryId) {
   if (!storageRoot || typeof storageRoot !== 'string') throw new Error('storageRoot is required');
-  if (!/^[0-9a-f-]{36}_[0-9a-f-]{36}$/i.test(repositoryId || '')) throw new Error('invalid repositoryId');
+  const parts = typeof repositoryId === 'string' ? repositoryId.split('_') : [];
+  if (parts.length !== 2 || !UUID.test(parts[1]) || (!UUID.test(parts[0]) && !/^[a-f0-9]{64}$/i.test(parts[0]))) throw new Error('invalid repositoryId');
   const root = resolve(storageRoot);
   if (root.toLowerCase() === resolve(tmpdir()).toLowerCase()) throw new Error('temporary directory cannot be receiver storage');
   if (root === parse(root).root) throw new Error('volume root cannot be receiver storage');
@@ -119,7 +120,7 @@ export async function provisionRepository({ clientId, deviceId, storageRoot, res
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const secret = { password: randomBytes(32).toString('base64url'), resticPassword: randomBytes(32).toString('base64url') };
     await mkdir(path, { recursive: true });
-    await runRestic(resticBinary, ['-r', path, 'init'], secret.resticPassword);
+    await runRestic(resticBinary, ['-r', path, 'init', '--repository-version', '2'], secret.resticPassword);
     const passwordHash = await bcrypt.hash(secret.password, 12);
     await atomicWrite(vaultFile, JSON.stringify(seal(secret, key, repositoryId)));
     await updateHtpasswd(htpasswdFile, repositoryId, passwordHash);

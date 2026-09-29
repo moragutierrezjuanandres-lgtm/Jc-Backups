@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { provisionRepository, revokeRepository } from '../server/backup-receiver/provision.mjs';
+import { provisionRepository, revokeRepository, repositoryIdentity, repositoryPath } from '../server/backup-receiver/provision.mjs';
 
 const root = await mkdtemp(join(tmpdir(), 'jc-receiver-test-'));
 test.after(async () => { await rm(root, { recursive: true, force: true }); });
@@ -14,6 +14,15 @@ const deviceId = randomUUID();
 const vaultKey = randomBytes(32);
 const options = { clientId, deviceId, storageRoot: join(root, 'data'), vaultKey,
   restServerBaseUrl: 'https://backup.example.test', resticBinary: process.env.JC_TEST_RESTIC || 'restic' };
+
+test('text client ids are isolated and repository paths retain legacy access',()=>{
+ const a=repositoryIdentity('cli-001',deviceId);
+ assert.match(a,/^[a-f0-9]{64}_[a-f0-9-]{36}$/);
+ assert.notEqual(a,repositoryIdentity('Cliente José',deviceId));
+ assert.equal(a,repositoryIdentity('cli-001',deviceId));
+ assert.equal(repositoryPath(options.storageRoot,`${clientId}_${deviceId}`),join(options.storageRoot,`${clientId}_${deviceId}`));
+ for(const id of ['',null,{},'../other','a/b','a\\b','x\u0000y']) assert.throws(()=>repositoryIdentity(id,deviceId));
+});
 
 test('rejects path traversal and storage in TEMP', async () => {
   await assert.rejects(provisionRepository({ ...options, clientId: '../other' }), /invalid clientId/i);
@@ -26,7 +35,7 @@ test('provisions unique encrypted credentials and returns same credentials on re
   const first = await provisionRepository(options);
   const second = await provisionRepository(options);
   assert.deepEqual(second, first);
-  assert.equal(first.repositoryId, `${clientId}_${deviceId}`);
+  assert.match(first.repositoryId, /^[a-f0-9]{64}_[a-f0-9-]{36}$/);
   assert.equal(first.endpoint, `https://backup.example.test/${first.username}/`);
   assert.ok(first.password.length >= 32);
   assert.ok(first.resticPassword.length >= 32);

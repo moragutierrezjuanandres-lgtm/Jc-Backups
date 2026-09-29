@@ -18,3 +18,9 @@ test('policy preserves Windows folders, validates days and defaults disabled',()
  assert.throws(()=>makePolicy({...p,sourceText:'C:\\Datos',days:[]}));
  assert.throws(()=>makePolicy({...p,sourceText:'C:\\Datos',time:'25:00'}));
 });
+test('compression defaults to auto and cannot be disabled',()=>{
+ const input={sourceText:'C:\\Datos',days:[1],time:'22:00'};
+ assert.equal(makePolicy(input).compression,'auto');
+ assert.equal(makePolicy({...input,compression:'max'}).compression,'max');
+ for(const compression of ['off','unknown',null]) assert.throws(()=>makePolicy({...input,compression}));
+});
