@@ -1,57 +1,200 @@
 package ui
 
 import (
- "context"
- "crypto/rand"
- "encoding/hex"
- "encoding/json"
- "errors"
- "fmt"
- "html/template"
- "io"
- "net"
- "net/http"
- "net/http/cookiejar"
- "net/url"
- "strings"
- "time"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"html/template"
+	"io"
+	"net"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"strings"
+	"time"
 
- "jcevnzl/backup-agent/internal/control"
- "jcevnzl/backup-agent/internal/service"
+	"jcevnzl/backup-agent/internal/control"
+	"jcevnzl/backup-agent/internal/service"
 )
 
-type App struct { ConfigPath string; PortalURL string; HTTP *http.Client; CSRF string; Session string; Clients []struct{ID string `json:"id"`;Name string `json:"name"`} }
-func New(configPath,portalURL string)(*App,error){if err:=control.ValidateBaseURL(portalURL);err!=nil{return nil,err};jar,_:=cookiejar.New(nil);client:=&http.Client{Timeout:20*time.Second,Jar:jar,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}};return &App{ConfigPath:configPath,PortalURL:strings.TrimRight(portalURL,"/"),HTTP:client,CSRF:random(),Session:random()},nil}
-func random()string{b:=make([]byte,32);if _,err:=rand.Read(b);err!=nil{panic(err)};return hex.EncodeToString(b)}
-func (a *App) Serve(ctx context.Context)error {
- listener,err:=net.Listen("tcp","127.0.0.1:18443");if err!=nil{return err}
- srv:=&http.Server{Handler:a.Handler(),ReadHeaderTimeout:5*time.Second}
- go func(){<-ctx.Done();closeCtx,cancel:=context.WithTimeout(context.Background(),5*time.Second);defer cancel();_ = srv.Shutdown(closeCtx)}()
- err=srv.Serve(listener);if errors.Is(err,http.ErrServerClosed){return nil};return err
+type App struct {
+	ConfigPath string
+	PortalURL  string
+	HTTP       *http.Client
+	CSRF       string
+	Session    string
+	Clients    []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
 }
-func (a *App) Handler()http.Handler{
- mux:=http.NewServeMux();mux.HandleFunc("GET /",a.page);mux.HandleFunc("GET /status",a.status);mux.HandleFunc("POST /login",a.login);mux.HandleFunc("POST /enroll",a.enroll);mux.HandleFunc("POST /policy",a.policy)
- return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){w.Header().Set("Cache-Control","no-store");w.Header().Set("X-Frame-Options","DENY");w.Header().Set("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'");if r.Host!="127.0.0.1:18443"&&r.Host!="localhost:18443"{http.Error(w,"bad host",400);return};mux.ServeHTTP(w,r)})
+
+func New(configPath, portalURL string) (*App, error) {
+	if err := control.ValidateBaseURL(portalURL); err != nil {
+		return nil, err
+	}
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Timeout: 20 * time.Second, Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &App{ConfigPath: configPath, PortalURL: strings.TrimRight(portalURL, "/"), HTTP: client, CSRF: random(), Session: random()}, nil
 }
-const pageHTML=`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>JC Respaldos</title><style>body{font:16px system-ui;max-width:680px;margin:3rem auto;padding:1rem;color:#1b2936}label{display:block;margin:1rem 0}input,textarea,select{display:block;width:100%;padding:.65rem;box-sizing:border-box}button{padding:.7rem 1.2rem;background:#136aa2;color:white;border:0;border-radius:4px}section{padding:1rem;border:1px solid #ccd;margin:1rem 0}</style><h1>JC Respaldos</h1>{{if .Message}}<p role="status">{{.Message}}</p>{{end}}<section><h2>Iniciar sesión con el portal</h2><form method="post" action="/login"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Usuario<input name="username" required autocomplete="username"></label><label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label><button>Ingresar</button></form></section>{{if .Logged}}<section><h2>Vincular este equipo</h2><p>Use el código temporal generado para el cliente en el portal.</p><form method="post" action="/enroll"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Nombre del equipo<input name="deviceLabel" required></label><label>Código<input name="code" required></label><button>Vincular</button></form></section>{{end}}{{if .Enrolled}}<section><h2>Configuración</h2><p>Cliente {{.ClientID}} · Equipo {{.DeviceLabel}}</p><form method="post" action="/policy"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Carpetas (una ruta absoluta por línea)<textarea name="sourceDirs" rows="5">{{.Sources}}</textarea></label><label>Exclusiones (una por línea)<textarea name="excludes" rows="3">{{.Excludes}}</textarea></label><label>Días (0=domingo, separados por coma)<input name="days" value="{{.Days}}"></label><label>Hora local HH:mm<input name="time" value="{{.Time}}"></label><label>Zona horaria IANA<input name="timezone" value="{{.Timezone}}"></label><label>Retener copias exitosas<input name="retention" type="number" min="1" max="365" value="{{.Retention}}"></label><button>Guardar política</button></form></section>{{end}}</html>`
-const isabellaPageHTML=`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Isabella · JC Respaldos</title><style>
+func random() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+func (a *App) Serve(ctx context.Context) error {
+	listener, err := net.Listen("tcp", "127.0.0.1:18443")
+	if err != nil {
+		return err
+	}
+	srv := &http.Server{Handler: a.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		<-ctx.Done()
+		closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(closeCtx)
+	}()
+	err = srv.Serve(listener)
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
+}
+func (a *App) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", a.page)
+	mux.HandleFunc("GET /status", a.status)
+	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("POST /enroll", a.enroll)
+	mux.HandleFunc("POST /policy", a.policy)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
+		if r.Host != "127.0.0.1:18443" && r.Host != "localhost:18443" {
+			http.Error(w, "bad host", 400)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+}
+
+const pageHTML = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>JC Respaldos</title><style>body{font:16px system-ui;max-width:680px;margin:3rem auto;padding:1rem;color:#1b2936}label{display:block;margin:1rem 0}input,textarea,select{display:block;width:100%;padding:.65rem;box-sizing:border-box}button{padding:.7rem 1.2rem;background:#136aa2;color:white;border:0;border-radius:4px}section{padding:1rem;border:1px solid #ccd;margin:1rem 0}</style><h1>JC Respaldos</h1>{{if .Message}}<p role="status">{{.Message}}</p>{{end}}<section><h2>Iniciar sesión con el portal</h2><form method="post" action="/login"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Usuario<input name="username" required autocomplete="username"></label><label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label><button>Ingresar</button></form></section>{{if .Logged}}<section><h2>Vincular este equipo</h2><p>Use el código temporal generado para el cliente en el portal.</p><form method="post" action="/enroll"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Nombre del equipo<input name="deviceLabel" required></label><label>Código<input name="code" required></label><button>Vincular</button></form></section>{{end}}{{if .Enrolled}}<section><h2>Configuración</h2><p>Cliente {{.ClientID}} · Equipo {{.DeviceLabel}}</p><form method="post" action="/policy"><input type="hidden" name="csrf" value="{{.CSRF}}"><label>Carpetas (una ruta absoluta por línea)<textarea name="sourceDirs" rows="5">{{.Sources}}</textarea></label><label>Exclusiones (una por línea)<textarea name="excludes" rows="3">{{.Excludes}}</textarea></label><label>Días (0=domingo, separados por coma)<input name="days" value="{{.Days}}"></label><label>Hora local HH:mm<input name="time" value="{{.Time}}"></label><label>Zona horaria IANA<input name="timezone" value="{{.Timezone}}"></label><label>Retener copias exitosas<input name="retention" type="number" min="1" max="365" value="{{.Retention}}"></label><button>Guardar política</button></form></section>{{end}}</html>`
+const isabellaPageHTML = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Isabella · JC Respaldos</title><style>
 :root{color-scheme:dark;font-family:Inter,Segoe UI,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% 15%,#38201d 0,#121318 38%,#07080b 78%);color:#ece7e4}main{max-width:1050px;margin:auto;padding:28px 22px 48px}.top{display:flex;justify-content:space-between;align-items:center}.brand{letter-spacing:.18em;font-size:12px;color:#cbb7af}.status{border:1px solid #3d454d;border-radius:999px;padding:8px 13px;color:#b9c7cf;font-size:12px}.grid{display:grid;grid-template-columns:290px 1fr;gap:24px;margin-top:24px}.orb{height:290px;border-radius:50%;background:radial-gradient(circle at 39% 35%,#d9e4e5 0 4%,#aa6a67 12%,#5a272b 28%,#171b22 58%,#090a0e 73%);box-shadow:0 0 70px #b8493c66, inset -25px -18px 45px #000;position:relative;overflow:hidden}.orb:after{content:"";position:absolute;inset:18% 5%;border:2px dotted #e3b3a477;border-radius:47% 53% 44% 56%;transform:rotate(-18deg);box-shadow:0 0 35px #e07e6d55}.hello{margin-top:15px;color:#c7bbb8;line-height:1.5}.card{background:#13161cdd;border:1px solid #30343b;border-radius:18px;padding:25px;box-shadow:0 18px 60px #0008}.card h1{margin:0 0 8px;font-size:28px;font-weight:500}.muted{color:#9ca5ad}.step{display:flex;gap:12px;margin:20px 0}.num{min-width:28px;height:28px;border-radius:50%;background:#9d3e38;color:white;text-align:center;padding-top:4px}.step h2{font-size:16px;margin:0 0 7px}.field{margin:13px 0}.field label{display:block;color:#b8c1c7;font-size:13px;margin-bottom:6px}input,textarea{width:100%;border:1px solid #3d444d;background:#0c0e12;color:#f1eeeb;border-radius:9px;padding:11px;font:inherit}textarea{min-height:84px;resize:vertical}button{border:0;border-radius:9px;padding:11px 18px;background:linear-gradient(110deg,#a84037,#d17a55);color:white;font-weight:600;cursor:pointer}.note{background:#1b1b21;border-left:3px solid #b55c4d;padding:11px 13px;border-radius:6px;color:#c6c0bf;font-size:13px}@media(max-width:760px){.grid{grid-template-columns:1fr}.orb{height:210px;width:210px;margin:auto}}
 </style><main><div class="top"><div class="brand">JC ENTERPRISE · RESPALDOS</div><div class="status">● Servicio local protegido</div></div><div class="grid"><aside><div class="orb" aria-label="Isabella"></div><div class="hello"><strong>Isabella</strong><br>Te acompaño a dejar este equipo vinculado y protegido. No necesitas abrir puertos ni conocer la IP del servidor.</div></aside><section class="card"><h1>Configura tu respaldo</h1><p class="muted">Un asistente sencillo para enviar copias comprimidas al servidor de tu organización.</p>{{if .Message}}<div class="note" role="status">{{.Message}}</div>{{end}}{{if not .Logged}}<div class="step"><div class="num">1</div><div><h2>Conecta con el portal</h2><form method="post" action="/login"><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="field"><label>Usuario<input name="username" required autocomplete="username"></label></div><div class="field"><label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label></div><button>Continuar con Isabella</button></form></div></div>{{else if not .Enrolled}}<div class="step"><div class="num">2</div><div><h2>Vincula este equipo</h2><p class="muted">Pide al administrador el código de seis dígitos generado en el portal.</p><form method="post" action="/enroll"><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="field"><label>Nombre del equipo<input name="deviceLabel" required placeholder="Recepción, Caja, Servidor..."></label></div><div class="field"><label>Código temporal<input name="code" inputmode="numeric" pattern="[0-9]{6}" required></label></div><button>Vincular equipo</button></form></div></div>{{else}}<div class="step"><div class="num">✓</div><div><h2>Equipo vinculado</h2><p class="muted">{{.ClientID}} · {{.DeviceLabel}}</p><div class="note">Las credenciales están protegidas localmente. Isabella seguirá funcionando aunque cierres esta ventana.</div></div></div><div class="step"><div class="num">3</div><div><h2>Indica qué proteger</h2><form method="post" action="/policy"><input type="hidden" name="csrf" value="{{.CSRF}}"><div class="field"><label>Carpetas, una por línea<textarea name="sourceDirs" required placeholder="C:\Datos\nD:\Clientes">{{.Sources}}</textarea></label></div><div class="field"><label>Exclusiones<textarea name="excludes" placeholder="*.tmp\nC:\Datos\cache">{{.Excludes}}</textarea></label></div><div class="field"><label>Días (0 domingo, separados por coma)<input name="days" value="{{.Days}}" placeholder="1,2,3,4,5"></label></div><div class="field"><label>Hora local<input name="time" value="{{.Time}}" placeholder="22:00"></label></div><button>Guardar y activar respaldo</button></form></div></div>{{end}}</section></div></main></html>`
-const smokeSuffix=`<style>.orb{animation:smoke 9s ease-in-out infinite alternate}.orb:before{content:"";position:absolute;inset:-12%;background:radial-gradient(ellipse at 35% 45%,#d7dfe055,transparent 35%),radial-gradient(ellipse at 70% 55%,#b54e4e66,transparent 42%);filter:blur(12px);animation:drift 7s ease-in-out infinite alternate}@keyframes smoke{from{transform:scale(.98) rotate(-2deg);filter:saturate(.9)}to{transform:scale(1.04) rotate(3deg);filter:saturate(1.25)}}@keyframes drift{from{transform:translate(-3%,2%) rotate(-4deg)}to{transform:translate(4%,-3%) rotate(5deg)}}</style>`
-var tmpl=template.Must(template.New("page").Parse(strings.Replace(isabellaPageHTML,"<h2>Equipo vinculado</h2>","<h2>Equipo vinculado</h2><p><a style=\"color:#edaa97\" href=\"/status\">Revisar conexión, ejecuciones y alertas</a></p>",1)+smokeSuffix))
-func (a *App) page(w http.ResponseWriter,r *http.Request){c,_:=service.LoadConfig(a.ConfigPath);data:=struct{Message,CSRF,ClientID,DeviceLabel,Sources,Excludes,Days,Time,Timezone string;Retention int;Logged,Enrolled bool}{CSRF:a.CSRF,Logged:a.authorized(r),Enrolled:c.DeviceID!="",ClientID:c.ClientID,DeviceLabel:c.DeviceLabel,Retention:7,Timezone:"America/Caracas"};if c.Policy!=nil{data.Sources=strings.Join(c.Policy.SourceDirs,"\n");data.Excludes=strings.Join(c.Policy.Excludes,"\n");data.Time=c.Policy.Time;data.Timezone=c.Policy.Timezone;data.Retention=c.Policy.RetentionSuccessfulCount;for i,d:=range c.Policy.Days{if i>0{data.Days+=","};data.Days+=fmt.Sprint(d)}};data.Message=r.URL.Query().Get("message");_ = tmpl.Execute(w,data)}
-func (a *App) authorized(r *http.Request)bool{c,err:=r.Cookie("jc_local_setup");return err==nil&&c.Value==a.Session}
-func (a *App) guard(w http.ResponseWriter,r *http.Request)bool{if !a.authorized(r)||r.FormValue("csrf")!=a.CSRF||r.Header.Get("Origin")!="http://127.0.0.1:18443"{http.Error(w,"unauthorized",403);return false};return true}
-func (a *App) login(w http.ResponseWriter,r *http.Request){
- if r.FormValue("csrf")!=a.CSRF||r.Header.Get("Origin")!="http://127.0.0.1:18443"{http.Error(w,"Solicitud no autorizada",403);return}
- payload,_:=json.Marshal(map[string]string{"username":r.FormValue("username"),"password":r.FormValue("password")})
- req,err:=http.NewRequestWithContext(r.Context(),"POST",a.PortalURL+"/api/auth/login",strings.NewReader(string(payload)));if err!=nil{http.Error(w,"Dirección del portal no válida",500);return}
- req.Header.Set("Content-Type","application/json")
- resp,err:=a.HTTP.Do(req);if err!=nil{http.Redirect(w,r,"/?message="+url.QueryEscape("No pude conectar con el portal. Comprueba Internet e inténtalo de nuevo."),303);return};defer resp.Body.Close()
- if resp.StatusCode!=200{http.Redirect(w,r,"/?message="+url.QueryEscape("El portal rechazó el acceso. Revisa usuario y contraseña; si hubo varios intentos, espera 15 minutos."),303);return}
- http.SetCookie(w,&http.Cookie{Name:"jc_local_setup",Value:a.Session,Path:"/",HttpOnly:true,SameSite:http.SameSiteStrictMode,MaxAge:900})
- http.Redirect(w,r,"/?message="+url.QueryEscape("Usuario validado por el portal. Introduce el código de vinculación."),303)
+const smokeSuffix = `<style>.orb{animation:smoke 9s ease-in-out infinite alternate}.orb:before{content:"";position:absolute;inset:-12%;background:radial-gradient(ellipse at 35% 45%,#d7f5ff88,transparent 35%),radial-gradient(ellipse at 70% 55%,#319fe866,transparent 42%);filter:blur(12px);animation:drift 7s ease-in-out infinite alternate}@keyframes smoke{from{transform:scale(.98) rotate(-2deg);filter:saturate(.9)}to{transform:scale(1.04) rotate(3deg);filter:saturate(1.25)}}@keyframes drift{from{transform:translate(-3%,2%) rotate(-4deg)}to{transform:translate(4%,-3%) rotate(5deg)}}</style>`
+
+var tmpl = template.Must(template.New("page").Parse(strings.Replace(isabellaPageHTML, "<h2>Equipo vinculado</h2>", "<h2>Equipo vinculado</h2><p><a style=\"color:#edaa97\" href=\"/status\">Revisar conexión, ejecuciones y alertas</a></p>", 1) + smokeSuffix))
+
+func (a *App) page(w http.ResponseWriter, r *http.Request) {
+	c, _ := service.LoadConfig(a.ConfigPath)
+	data := struct {
+		Message, CSRF, ClientID, DeviceLabel, Sources, Excludes, Days, Time, Timezone string
+		Retention                                                                     int
+		Logged, Enrolled                                                              bool
+	}{CSRF: a.CSRF, Logged: a.authorized(r), Enrolled: c.DeviceID != "", ClientID: c.ClientID, DeviceLabel: c.DeviceLabel, Retention: 7, Timezone: "America/Caracas"}
+	if c.Policy != nil {
+		data.Sources = strings.Join(c.Policy.SourceDirs, "\n")
+		data.Excludes = strings.Join(c.Policy.Excludes, "\n")
+		data.Time = c.Policy.Time
+		data.Timezone = c.Policy.Timezone
+		data.Retention = c.Policy.RetentionSuccessfulCount
+		for i, d := range c.Policy.Days {
+			if i > 0 {
+				data.Days += ","
+			}
+			data.Days += fmt.Sprint(d)
+		}
+	}
+	data.Message = r.URL.Query().Get("message")
+	_ = tmpl.Execute(w, data)
 }
-func (a *App) enroll(w http.ResponseWriter,r *http.Request){if !a.guard(w,r){return};payload,_:=json.Marshal(map[string]string{"code":r.FormValue("code"),"deviceLabel":r.FormValue("deviceLabel")});req,_:=http.NewRequestWithContext(r.Context(),"POST",a.PortalURL+"/api/backup-agent/enroll",strings.NewReader(string(payload)));req.Header.Set("Content-Type","application/json");resp,err:=a.HTTP.Do(req);if err!=nil{http.Error(w,"portal unavailable",502);return};defer resp.Body.Close();if resp.StatusCode!=200&&resp.StatusCode!=201{http.Error(w,"enrollment rejected",resp.StatusCode);return};var enrollment control.Enrollment;if err=json.NewDecoder(io.LimitReader(resp.Body,1<<20)).Decode(&enrollment);err!=nil{http.Error(w,"invalid enrollment response",502);return};if enrollment.Token==""||enrollment.Repository.URL==""||enrollment.Repository.Key==""{http.Error(w,"incomplete enrollment",502);return};cfg:=service.Config{PortalURL:a.PortalURL,DeviceID:enrollment.DeviceID,ClientID:enrollment.ClientID,DeviceLabel:r.FormValue("deviceLabel"),Token:enrollment.Token,Repository:enrollment.Repository};if err=service.SaveConfig(a.ConfigPath,cfg);err!=nil{http.Error(w,"cannot save protected configuration",500);return};http.Redirect(w,r,"/?message=Equipo+vinculado",http.StatusSeeOther)}
-func lines(v string)[]string{var out []string;for _,line:=range strings.Split(v,"\n"){line=strings.TrimSpace(line);if line!=""{out=append(out,line)}};return out}
-func IsLoopbackAddress(raw string)bool{u,e:=url.Parse(raw);return e==nil&&(u.Hostname()=="127.0.0.1"||u.Hostname()=="localhost")}
+func (a *App) authorized(r *http.Request) bool {
+	c, err := r.Cookie("jc_local_setup")
+	return err == nil && c.Value == a.Session
+}
+func (a *App) guard(w http.ResponseWriter, r *http.Request) bool {
+	if !a.authorized(r) || r.FormValue("csrf") != a.CSRF || r.Header.Get("Origin") != "http://127.0.0.1:18443" {
+		http.Error(w, "unauthorized", 403)
+		return false
+	}
+	return true
+}
+func (a *App) login(w http.ResponseWriter, r *http.Request) {
+	if r.FormValue("csrf") != a.CSRF || r.Header.Get("Origin") != "http://127.0.0.1:18443" {
+		http.Error(w, "Solicitud no autorizada", 403)
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{"username": r.FormValue("username"), "password": r.FormValue("password")})
+	req, err := http.NewRequestWithContext(r.Context(), "POST", a.PortalURL+"/api/auth/login", strings.NewReader(string(payload)))
+	if err != nil {
+		http.Error(w, "Dirección del portal no válida", 500)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := a.HTTP.Do(req)
+	if err != nil {
+		http.Redirect(w, r, "/?message="+url.QueryEscape("No pude conectar con el portal. Comprueba Internet e inténtalo de nuevo."), 303)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		http.Redirect(w, r, "/?message="+url.QueryEscape("El portal rechazó el acceso. Revisa usuario y contraseña; si hubo varios intentos, espera 15 minutos."), 303)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: "jc_local_setup", Value: a.Session, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 900})
+	http.Redirect(w, r, "/?message="+url.QueryEscape("Usuario validado por el portal. Introduce el código de vinculación."), 303)
+}
+func (a *App) enroll(w http.ResponseWriter, r *http.Request) {
+	if !a.guard(w, r) {
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{"code": r.FormValue("code"), "deviceLabel": r.FormValue("deviceLabel")})
+	req, _ := http.NewRequestWithContext(r.Context(), "POST", a.PortalURL+"/api/backup-agent/enroll", strings.NewReader(string(payload)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := a.HTTP.Do(req)
+	if err != nil {
+		http.Error(w, "portal unavailable", 502)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		http.Error(w, "enrollment rejected", resp.StatusCode)
+		return
+	}
+	var enrollment control.Enrollment
+	if err = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&enrollment); err != nil {
+		http.Error(w, "invalid enrollment response", 502)
+		return
+	}
+	if enrollment.Token == "" || enrollment.Repository.URL == "" || enrollment.Repository.Key == "" {
+		http.Error(w, "incomplete enrollment", 502)
+		return
+	}
+	cfg := service.Config{PortalURL: a.PortalURL, DeviceID: enrollment.DeviceID, ClientID: enrollment.ClientID, DeviceLabel: r.FormValue("deviceLabel"), Token: enrollment.Token, Repository: enrollment.Repository}
+	if err = service.SaveConfig(a.ConfigPath, cfg); err != nil {
+		http.Error(w, "cannot save protected configuration", 500)
+		return
+	}
+	http.Redirect(w, r, "/?message=Equipo+vinculado", http.StatusSeeOther)
+}
+func lines(v string) []string {
+	var out []string
+	for _, line := range strings.Split(v, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+func IsLoopbackAddress(raw string) bool {
+	u, e := url.Parse(raw)
+	return e == nil && (u.Hostname() == "127.0.0.1" || u.Hostname() == "localhost")
+}
