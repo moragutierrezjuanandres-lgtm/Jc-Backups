@@ -4,6 +4,9 @@ import { PostgresStore } from '../lib/postgres.js';
 import { BackupRepository } from '../lib/backup/repository.js';
 import { BackupAuth } from '../lib/backup/auth.js';
 import { provisionRepository, revokeRepository } from './backup-receiver/provision.mjs';
+import { createReceiverProxy } from './receiver-proxy.mjs';
+import { initializeBackupSchema } from '../lib/backup/schema.js';
+import { startVerifier } from './backup-receiver/verify.mjs';
 
 export function readConfig(env=process.env) {
   if(!env.DATABASE_URL) throw new Error('DATABASE_URL es obligatoria.');
@@ -24,6 +27,7 @@ export function readConfig(env=process.env) {
 export async function startServer(config,store=new PostgresStore(config.connectionString)) {
   try {
     await store.pool.query('SELECT 1');
+    await initializeBackupSchema(store.pool);
     let backupAuth=null,backupRepository=null,backupReceiverConfigured=false;
     if(process.env.JC_BACKUP_STORAGE_ROOT&&process.env.JC_BACKUP_RESTIC&&process.env.JC_BACKUP_RECEIVER_URL){
       const receiver={
@@ -43,13 +47,14 @@ export async function startServer(config,store=new PostgresStore(config.connecti
       backupAuth=new BackupAuth(store.pool,config.vaultKey,unavailableReceiver);
       backupRepository=new BackupRepository(store.pool);
     }
-    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured});
+    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured,receiverProxy:createReceiverProxy({port:Number(process.env.JC_BACKUP_RECEIVER_PORT||8000)})});
     const server=await new Promise((resolve,reject)=>{
       const instance=app.listen(config.port,config.host,()=>resolve(instance));
       instance.once('error',reject);
     });
     let closing;
-    return {server,close:()=>closing??=(async()=>{await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await store.close();})()};
+    const stopVerifier=backupReceiverConfigured?startVerifier({pool:store.pool,vaultKey:config.vaultKey,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT,binary:process.env.JC_BACKUP_RESTIC}):async()=>{};
+    return {server,close:()=>closing??=(async()=>{await stopVerifier();await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await store.close();})()};
   } catch(error) {await store.close();throw error;}
 }
 

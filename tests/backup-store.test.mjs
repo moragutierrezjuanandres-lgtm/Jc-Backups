@@ -57,3 +57,32 @@ test('successful agent report is acknowledged pending independent verification w
  assert.equal((await repo.appendEvent(device,event)).status,'verifying');
  assert.equal((await pool.query('SELECT * FROM backup_snapshots WHERE run_id=$1',[run.id])).rows.length,0);
 });
+
+test('offline scheduled events are accepted in order and telemetry renews a bounded lease',async()=>{
+ const device='00000000-0000-4000-8000-000000000003';
+ await pool.query("INSERT INTO backup_devices(id,client_id,label) VALUES($1,'c1','Offline')",[device]);
+ const run=await repo.enqueue(device,'scheduled:1:2026-09-29:22:00',1);
+ const start={runId:run.id,attempt:1,sequence:1,kind:'start',payload:{}};
+ const now=new Date('2026-09-29T22:00:00Z');
+ assert.equal((await repo.appendEvent(device,start,now)).status,'running');
+ const progress=await repo.telemetry(device,{runId:run.id,attempt:1,progress:64.5,processedBytes:64,totalBytes:100,currentFile:'C:\\Private\\data.zip',password:'hidden'},new Date('2026-09-29T22:01:00Z'));
+ assert.equal(progress.progress.percent,64.5);
+ assert.equal(progress.progress.currentFile,'data.zip');
+ assert.ok(!JSON.stringify(progress).includes('hidden'));
+ const saved=(await pool.query('SELECT * FROM backup_runs WHERE id=$1',[run.id])).rows[0];
+ assert.equal(new Date(saved.lease_until).toISOString(),'2026-09-29T22:03:00.000Z');
+ await assert.rejects(repo.telemetry(device,{runId:run.id,attempt:1,progress:101}),/progreso/i);
+ await assert.rejects(repo.telemetry(deviceId,{runId:run.id,attempt:1,progress:10}),/disponible/i);
+});
+
+test('expired running leases retry once instead of remaining stuck forever',async()=>{
+ const device='00000000-0000-4000-8000-000000000004';
+ await pool.query("INSERT INTO backup_devices(id,client_id,label) VALUES($1,'c1','Lease')",[device]);
+ const run=await repo.enqueue(device,'manual:lease',1);
+ await repo.claim(device,new Date('2026-09-29T00:00:00Z'));
+ assert.equal(await repo.claim(device,new Date('2026-09-29T00:03:00Z')),null);
+ const claimed=await repo.claim(device,new Date('2026-09-29T00:18:00Z'));
+ assert.equal(claimed.id,run.id);assert.equal(claimed.attempt,2);
+ assert.equal(await repo.claim(device,new Date('2026-09-29T00:21:00Z')),null);
+ assert.equal((await pool.query('SELECT status FROM backup_runs WHERE id=$1',[run.id])).rows[0].status,'failed');
+});

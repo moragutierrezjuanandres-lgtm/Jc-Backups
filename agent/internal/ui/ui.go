@@ -3,12 +3,14 @@ package ui
 import (
 	"context"
 	"crypto/rand"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -32,6 +34,9 @@ type App struct {
 	}
 }
 
+//go:embed web/assets/*
+var assets embed.FS
+
 func New(configPath, portalURL string) (*App, error) {
 	if err := control.ValidateBaseURL(portalURL); err != nil {
 		return nil, err
@@ -48,9 +53,15 @@ func random() string {
 	return hex.EncodeToString(b)
 }
 func (a *App) Serve(ctx context.Context) error {
+	return a.ServeReady(ctx, nil)
+}
+func (a *App) ServeReady(ctx context.Context, ready chan<- struct{}) error {
 	listener, err := net.Listen("tcp", "127.0.0.1:18443")
 	if err != nil {
 		return err
+	}
+	if ready != nil {
+		close(ready)
 	}
 	srv := &http.Server{Handler: a.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
@@ -67,6 +78,12 @@ func (a *App) Serve(ctx context.Context) error {
 }
 func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
+	assetFS, _ := fs.Sub(assets, "web/assets")
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS))))
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"service":"isabella","status":"ok"}`))
+	})
 	mux.HandleFunc("GET /", a.page)
 	mux.HandleFunc("GET /status", a.status)
 	mux.HandleFunc("POST /login", a.login)
@@ -75,7 +92,7 @@ func (a *App) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
 		if r.Host != "127.0.0.1:18443" && r.Host != "localhost:18443" {
 			http.Error(w, "bad host", 400)
 			return
@@ -92,7 +109,7 @@ const smokeSuffix = `<style>.orb{animation:smoke 9s ease-in-out infinite alterna
 
 const cloudSuffix = `<style>.orb{border-radius:42% 58% 52% 48% / 55% 42% 58% 45%;clip-path:polygon(50% 3%,64% 8%,77% 4%,88% 16%,96% 31%,91% 47%,98% 62%,88% 78%,76% 94%,59% 90%,45% 98%,31% 91%,14% 94%,8% 78%,2% 62%,9% 46%,3% 30%,16% 15%,31% 8%);transition:transform .35s ease,filter .35s ease}.orb:hover{transform:scale(1.06) rotate(2deg);filter:brightness(1.2) saturate(1.25)}.orb:after{border-style:dashed;animation:cloudEdge 5s ease-in-out infinite alternate}@keyframes cloudEdge{from{transform:rotate(-18deg) scale(.92)}to{transform:rotate(12deg) scale(1.06)}}</style>`
 
-var tmpl = template.Must(template.New("page").Parse(strings.Replace(isabellaPageHTML, "<h2>Equipo vinculado</h2>", "<h2>Equipo vinculado</h2><p><a style=\"color:#edaa97\" href=\"/status\">Revisar conexión, ejecuciones y alertas</a></p>", 1) + smokeSuffix + cloudSuffix))
+var tmpl = template.Must(template.New("page").Parse(strings.Replace(strings.Replace(isabellaPageHTML, `<div class="orb" aria-label="Isabella"></div>`, `<div id="isabella-cloud" aria-label="Isabella" style="height:290px;width:100%"></div>`, 1), "<h2>Equipo vinculado</h2>", "<h2>Equipo vinculado</h2><p><a style=\"color:#65bcff\" href=\"/status\">Revisar conexión, ejecuciones y alertas</a></p>", 1) + `<style>body{background:radial-gradient(ellipse at 75% 15%,#25313f 0,#15171c 38%,#0d0f13 78%)}button{background:linear-gradient(110deg,#197ab7,#309ddc)}.num{background:#197ab7}.note{border-left-color:#309ddc}.brand{color:#afbdcb}#isabella-cloud canvas{display:block;width:100%;height:100%}</style><script defer src="/assets/isabella.js"></script>`))
 
 func (a *App) page(w http.ResponseWriter, r *http.Request) {
 	c, _ := service.LoadConfig(a.ConfigPath)
