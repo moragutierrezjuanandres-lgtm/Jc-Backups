@@ -22,7 +22,8 @@ test('HTTP enrollment requires password session and client code; device status e
  let provisions=0;const key=randomBytes(32);
  const receiver={async provision({deviceId}){provisions++;return {repositoryId:deviceId,url:'https://backup.test/'+deviceId,username:deviceId,password:'repo-password',key:'repo-key'};},async revoke(){}};
  const auth=new BackupAuth(pool,key,receiver);
- const app=createCloudApp({store,vaultKey:key,secureCookie:false,backupAuth:auth,backupRepository:new BackupRepository(pool),backupReceiverConfigured:true});
+ let directoryCalls=0;
+ const app=createCloudApp({store,vaultKey:key,secureCookie:false,backupAuth:auth,backupRepository:new BackupRepository(pool),backupReceiverConfigured:true,backupDirectory:async(id,directory)=>{directoryCalls++;return {directory,deviceId:id};}});
  const server=await new Promise(r=>{const s=app.listen(0,'127.0.0.1',()=>r(s));});const base='http://127.0.0.1:'+server.address().port;
  async function request(path,body,cookie,token){const r=await fetch(base+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
  try {
@@ -46,6 +47,12 @@ test('HTTP enrollment requires password session and client code; device status e
   const received=await request('/api/backup-agent/policy',null,null,linked.body.token);assert.equal(received.body.policy.enabled,true);assert.deepEqual(received.body.policy.sourceDirs,['C:\\Datos']);
   const claim=await request('/api/backup-agent/claim',{},null,linked.body.token);assert.deepEqual(claim.body,{run:null});
   const own=await request('/api/backups',null,a.cookie);assert.equal(own.body.devices.length,1);assert.ok(!JSON.stringify(own.body).includes(linked.body.token));
+  assert.equal(own.body.policies[0].deviceId,linked.body.deviceId);
+  const directoryPath=`/api/backups/devices/${linked.body.deviceId}/directory`;
+  assert.equal((await request(directoryPath,{directory:'D:\\Respaldos'},a.cookie)).status,403);
+  assert.equal(directoryCalls,0);
+  const directory=await request(directoryPath,{directory:'D:\\Respaldos'},admin.cookie);
+  assert.equal(directory.status,200);assert.equal(directory.body.directory,'D:\\Respaldos');assert.equal(directoryCalls,1);
   const policyPath=`/api/backups/devices/${linked.body.deviceId}/policy`;
   assert.equal((await request(policyPath,null,b.cookie)).status,403);
   assert.equal((await request(policyPath,null,admin.cookie)).body.policy.revision,1);

@@ -15,7 +15,7 @@ export function startRestorer({pool,vaultKey,storageRoot,binary,restoreRoot}) {
  async function step(){
   await pool.query(`UPDATE backup_restore_jobs SET status='failed',error_code='interrupted',completed_at=now(),lease_until=NULL WHERE status='running' AND lease_until<=now()`);
   const job=(await pool.query(`UPDATE backup_restore_jobs SET status='running',lease_until=now()+interval '13 hours'
-    WHERE id=(SELECT id FROM backup_restore_jobs WHERE status='queued' AND expires_at>now() ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`)).rows[0];
+    WHERE id=(SELECT j.id FROM backup_restore_jobs j JOIN backup_devices d ON d.id=j.device_id WHERE j.status='queued' AND j.expires_at>now() AND d.storage_moving=false ORDER BY j.created_at FOR UPDATE OF j,d SKIP LOCKED LIMIT 1) RETURNING *`)).rows[0];
   if(!job)return;
   try {
    if(!/^[a-f0-9-]{36}$/.test(job.id))throw new Error('invalid_job');

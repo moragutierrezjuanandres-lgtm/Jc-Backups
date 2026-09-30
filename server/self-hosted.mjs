@@ -9,6 +9,7 @@ import { initializeBackupSchema } from '../lib/backup/schema.js';
 import { startVerifier } from './backup-receiver/verify.mjs';
 import { startRestorer } from './backup-receiver/restore.mjs';
 import { resolve } from 'node:path';
+import { createDirectoryManager,recoverDirectoryChanges } from './backup-receiver/directory.mjs';
 
 export function readConfig(env=process.env) {
   if(!env.DATABASE_URL) throw new Error('DATABASE_URL es obligatoria.');
@@ -50,7 +51,11 @@ export async function startServer(config,store=new PostgresStore(config.connecti
       backupAuth=new BackupAuth(store.pool,config.vaultKey,unavailableReceiver);
       backupRepository=new BackupRepository(store.pool);
     }
-    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured,receiverProxy:createReceiverProxy({port:Number(process.env.JC_BACKUP_RECEIVER_PORT||8000)})});
+    const receiving=new Map(),activeRepositories=new Set(),storageRoot=process.env.JC_BACKUP_STORAGE_ROOT;
+    if(backupReceiverConfigured)await recoverDirectoryChanges({pool:store.pool,storageRoot});
+    const backupDirectory=backupReceiverConfigured?createDirectoryManager({pool:store.pool,storageRoot,protectedRoots:[resolve('.'),resolve(storageRoot,'../pgdata')],isReceiving:id=>receiving.has(id)||activeRepositories.has(id)}):null;
+    const receiverProxy=createReceiverProxy({port:Number(process.env.JC_BACKUP_RECEIVER_PORT||8000),receiving,canReceive:backupReceiverConfigured?async id=>{const device=(await store.pool.query('SELECT storage_moving FROM backup_devices WHERE repository_id=$1',[id])).rows[0];return !device?.storage_moving;}:null});
+    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured,receiverProxy,backupDirectory});
     server=await new Promise((resolve,reject)=>{
       const instance=app.listen(config.port,config.host,()=>resolve(instance));
       instance.once('error',reject);
@@ -60,7 +65,7 @@ export async function startServer(config,store=new PostgresStore(config.connecti
       await store.pool.query("UPDATE backup_runs SET verification_lease_until=NULL WHERE status='verifying'");
       await store.pool.query("UPDATE backup_restore_jobs SET status='failed',error_code='interrupted',lease_until=NULL,completed_at=now() WHERE status='running'");
     }
-    const stopVerifier=backupReceiverConfigured?startVerifier({pool:store.pool,vaultKey:config.vaultKey,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT,binary:process.env.JC_BACKUP_RESTIC}):async()=>{};
+    const stopVerifier=backupReceiverConfigured?startVerifier({activeRepositories,pool:store.pool,vaultKey:config.vaultKey,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT,binary:process.env.JC_BACKUP_RESTIC}):async()=>{};
     const stopRestorer=backupReceiverConfigured?startRestorer({pool:store.pool,vaultKey:config.vaultKey,storageRoot:process.env.JC_BACKUP_STORAGE_ROOT,binary:process.env.JC_BACKUP_RESTIC,restoreRoot:resolve(process.env.JC_BACKUP_STORAGE_ROOT,'../backup-restores')}):async()=>{};
     return {server,close:()=>closing??=(async()=>{await Promise.all([stopVerifier(),stopRestorer()]);await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await store.close();})()};
   } catch(error) {if(server?.listening)await new Promise(done=>server.close(done));await store.close();throw error;}

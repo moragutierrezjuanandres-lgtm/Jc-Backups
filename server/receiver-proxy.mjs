@@ -19,14 +19,18 @@ function safePath(pathname) {
   return `/${parts.map(part => encodeURIComponent(part)).join('/')}`;
 }
 
-export function createReceiverProxy({ host = '127.0.0.1', port = 8000 } = {}) {
-  return (req, res, next) => {
+export function createReceiverProxy({ host = '127.0.0.1', port = 8000,canReceive=null,receiving=new Map() } = {}) {
+  return async (req, res, next) => {
     if (req.url?.startsWith('/api/')) return next();
     const parsed = new URL(req.url || '/', 'http://receiver.local');
     const path = safePath(parsed.pathname);
     if (!path) return next();
     if (req.headers.origin && !/^https:\/\/(www\.)?jcevnzl\.space$/.test(req.headers.origin)) return reject(res, 403, 'Origen no autorizado.');
     if (!req.headers.authorization || !/^Basic\s+[A-Za-z0-9+/=]+$/.test(req.headers.authorization)) return reject(res, 401, 'Autenticación del repositorio requerida.');
+    const repositoryId=path.split('/')[1];receiving.set(repositoryId,(receiving.get(repositoryId)||0)+1);
+    res.once('close',()=>{const remaining=(receiving.get(repositoryId)||1)-1;if(remaining)receiving.set(repositoryId,remaining);else receiving.delete(repositoryId);});
+    try {if(canReceive&&!await canReceive(repositoryId))return reject(res,503,'El directorio del respaldo se está actualizando. Reintenta más tarde.');}
+    catch {return reject(res,503,'No se pudo comprobar el estado del receptor.');}
     const proxy = http.request({ host, port, method: req.method, path: `${path}${parsed.search}`, headers: {
       authorization: req.headers.authorization,
       'content-type': req.headers['content-type'] || 'application/octet-stream',

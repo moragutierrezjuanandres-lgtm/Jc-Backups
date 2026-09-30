@@ -16,15 +16,17 @@ export async function verifySnapshot({binary,path,password,snapshotId,signal,exp
   return snapshots[0].id;
 }
 
-export function startVerifier({pool,vaultKey,storageRoot,binary}) {
+export function startVerifier({pool,vaultKey,storageRoot,binary,activeRepositories=new Set()}) {
   const abort=new AbortController(); let running=null;
   async function step() {
     const row=(await pool.query(`UPDATE backup_runs SET verification_lease_until=now()+interval '13 hours',verification_attempts=verification_attempts+1
       WHERE id=(SELECT id FROM backup_runs WHERE status='verifying' AND (verification_retry_at IS NULL OR verification_retry_at<=now())
       AND (verification_lease_until IS NULL OR verification_lease_until<=now()) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`)).rows[0];
     if(!row) return;
+    let activeRepository;
     try {
       const device=(await pool.query('SELECT repository_id,repository_secret FROM backup_devices WHERE id=$1',[row.device_id])).rows[0];
+      activeRepository=device.repository_id;activeRepositories.add(activeRepository);
       const envelope=JSON.parse(device.repository_secret);
       const decipher=createDecipheriv('aes-256-gcm',vaultKey,Buffer.from(envelope.iv,'base64'));
       decipher.setAuthTag(Buffer.from(envelope.tag,'base64'));
@@ -49,7 +51,7 @@ export function startVerifier({pool,vaultKey,storageRoot,binary}) {
       await pool.query(`INSERT INTO backup_alerts(id,client_id,device_id,run_id,kind,message)
         SELECT $1,client_id,id,$2,'verification','No se pudo verificar la integridad de la copia.' FROM backup_devices WHERE id=$3
         ON CONFLICT(device_id,run_id,kind) DO NOTHING`,[randomUUID(),row.id,row.device_id]);
-    }
+    } finally {if(activeRepository)activeRepositories.delete(activeRepository);}
   }
   const tick=()=>{if(!running&&!abort.signal.aborted)running=step().catch(error=>console.error('Backup verifier:',error.code||error.name)).finally(()=>{running=null;});};
   const timer=setInterval(tick,10000);timer.unref();tick();

@@ -1,0 +1,10 @@
+.portal-isabella{position:relative;padding:22px;min-height:240px}
+.portal-isabella.isabella-current{border:1px solid #aaf3b833;border-radius:16px;background:radial-gradient(ellipse at 30% 50%,#aaf3b80c,transparent 70%)}
+.isabella-current figcaption p{color:#aaf3b8}
+.isabella-transfer-sphere{position:absolute;width:24px;height:24px;left:8px;top:8px;border-radius:50%;background:radial-gradient(circle at 30% 28%,#e0f7ff,#36b8ff 32%,#0969dd 68%,#00346e);box-shadow:0 0 20px #219cff99,0 0 48px #219cff33;pointer-events:none;animation:isabella-transfer 8s ease-in-out infinite;z-index:2}
+@keyframes isabella-transfer{0%,100%{left:8px;top:8px}25%{left:calc(100% - 32px);top:8px}50%{left:calc(100% - 32px);top:calc(100% - 32px)}75%{left:8px;top:calc(100% - 32px)}}
+@media(prefers-reduced-motion:reduce){.isabella-transfer-sphere{animation:none}}
+.backup-progress-panel{padding:16px 22px;border-top:1px solid #ffffff15}
+.backup-progress-panel progress{display:block;width:100%;height:12px;margin:10px 0;accent-color:#36b8ff}
+.backup-selected-row{background:#269cff10}
+.backup-directory{overflow-wrap:anywhere;white-space:normal}
