@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { verifySnapshot } from '../server/backup-receiver/verify.mjs';
+import { restoreSnapshot } from '../server/backup-receiver/restore.mjs';
+import { retainVerified } from '../server/backup-receiver/retention.mjs';
 const run=promisify(execFile);
 test('real compressed snapshot verifies and restores identical bytes',{skip:!process.env.JC_TEST_RESTIC},async()=>{
  const root=await mkdtemp(join(tmpdir(),'isabella-verify-'));
@@ -17,8 +19,21 @@ test('real compressed snapshot verifies and restores identical bytes',{skip:!pro
   await run(binary,['-r',path,'backup','--compression','auto','fixture.txt'],{...options,cwd:source});
   const {stdout}=await run(binary,['-r',path,'snapshots','--json'],options);const snapshotId=JSON.parse(stdout)[0].id;
   assert.equal(await verifySnapshot({binary,path,password,snapshotId}),snapshotId);
+  await assert.rejects(verifySnapshot({binary,path,password,snapshotId,expectedTag:'isabella-run:other'}),/snapshot_run_mismatch/);
   await assert.rejects(verifySnapshot({binary,path,password,snapshotId:'../bad'}),/invalid_snapshot/);
-  const target=join(root,'restored');await run(binary,['-r',path,'restore',snapshotId,'--target',target,'--include','**/fixture.txt'],options);
+  const target=join(root,'restored');await restoreSnapshot({binary,path,password,snapshotId,target});
   assert.deepEqual(await readFile(join(target,'fixture.txt')),payload);
+  await writeFile(join(source,'fixture.txt'),'second version');await run(binary,['-r',path,'backup','fixture.txt'],{...options,cwd:source});
+  let marked=false;
+  const pool={query:async sql=>{
+   if(sql.includes('FROM backup_runs'))return {rows:[]};
+   if(sql.includes('FROM backup_policies'))return {rows:[{retention_successful_count:1}]};
+   if(sql.includes('FROM backup_snapshots'))return {rows:[{snapshot_id:snapshotId}]};
+   if(sql.startsWith('UPDATE backup_snapshots')){marked=true;return {rows:[]};}
+   throw new Error('Unexpected retention query');
+  }};
+  await retainVerified({pool,binary,path,password,deviceId:'fixture'});assert.equal(marked,true);
+  const remaining=JSON.parse((await run(binary,['-r',path,'snapshots','--json'],options)).stdout);
+  assert.equal(remaining.length,1);assert.notEqual(remaining[0].id,snapshotId);
  } finally {await rm(root,{recursive:true,force:true})}
 });

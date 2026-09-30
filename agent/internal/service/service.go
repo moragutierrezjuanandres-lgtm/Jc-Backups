@@ -55,6 +55,13 @@ type Service struct {
 }
 
 func (s Service) Run(ctx context.Context) error {
+	if j, err := journal.Open(s.JournalPath); err == nil {
+		if err = j.RecoverInterrupted(); err != nil {
+			return err
+		}
+	} else {
+		return err
+	}
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
 	for {
@@ -102,17 +109,22 @@ func (s Service) step(ctx context.Context) {
 		cfg.Policy = policy
 		_ = SaveConfig(s.ConfigPath, cfg)
 	}
-	if cfg.Policy == nil || !cfg.Policy.Enabled {
+	if cfg.Policy == nil {
 		return
 	}
-	s.runOfflineDue(ctx, cfg, j)
+	if cfg.Policy.Enabled {
+		s.runOfflineDue(ctx, cfg, j)
+	}
 	run, err := api.Claim(ctx)
 	if err != nil || run == nil {
 		return
 	}
 	key := run.ID
-	if strings.HasPrefix(run.OccurrenceKey, "scheduled:") && j.State(run.OccurrenceKey).Attempt > 0 {
-		return
+	if strings.HasPrefix(run.OccurrenceKey, "scheduled:") {
+		key = run.OccurrenceKey
+		if j.State(key).Attempt >= run.Attempt {
+			return
+		}
 	}
 	s.execute(ctx, cfg, j, key, run.Attempt)
 }

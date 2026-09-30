@@ -33,5 +33,7 @@ flowchart LR
 - Las pruebas Go pasaron, incluyendo el inicio y parada del manejador del servicio de Windows.
 - El ejecutable se compiló y su interfaz local se abrió sin errores gráficos.
 - El backend publicado respondió correctamente; Vercel marcó el commit `1aa8375` como Ready en producción.
-- La instalación elevada y la vinculación con una cuenta real requieren completar los avisos de Windows y el inicio de sesión del usuario. Estos pasos no se han confirmado todavía.
-- La programación se configura actualmente desde Isabella. La gestión de destinos alternativos, retención automática y restauración desde la interfaz del portal requieren completar sus módulos; no se consideran terminados en esta entrega.
+- La instalación elevada se confirmó: el servicio quedó Running con inicio Automatic y su interfaz respondió correctamente.
+- El portal permite configurar carpetas, horario, días, compresión y retención por equipo, además de solicitar un respaldo inmediato.
+- La restauración desde el portal se realiza en una carpeta nueva del servidor y verifica los archivos restaurados. La retención solo cuenta copias verificadas.
+- Falta comprobar la vinculación con una cuenta real y un reinicio del equipo sin sesión abierta. Los destinos SFTP/S3 y un instalador Linux no están incluidos en el paquete Windows.

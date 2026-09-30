@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { PostgresStore } from '../lib/postgres.js';
 import { createCloudApp } from '../lib/cloud-app.js';
 import { passwordHash } from '../lib/auth.js';
@@ -46,5 +46,22 @@ test('HTTP enrollment requires password session and client code; device status e
   const received=await request('/api/backup-agent/policy',null,null,linked.body.token);assert.equal(received.body.policy.enabled,true);assert.deepEqual(received.body.policy.sourceDirs,['C:\\Datos']);
   const claim=await request('/api/backup-agent/claim',{},null,linked.body.token);assert.deepEqual(claim.body,{run:null});
   const own=await request('/api/backups',null,a.cookie);assert.equal(own.body.devices.length,1);assert.ok(!JSON.stringify(own.body).includes(linked.body.token));
+  const policyPath=`/api/backups/devices/${linked.body.deviceId}/policy`;
+  assert.equal((await request(policyPath,null,b.cookie)).status,403);
+  assert.equal((await request(policyPath,null,admin.cookie)).body.policy.revision,1);
+  assert.equal((await request('/api/backups/runs',{deviceId:linked.body.deviceId},b.cookie)).status,403);
+  const manual=await request('/api/backups/runs',{deviceId:linked.body.deviceId},admin.cookie);
+  assert.equal(manual.status,200);assert.equal(manual.body.run.status,'queued');
+  assert.equal((await request('/api/backup-agent/claim',{},null,linked.body.token)).body.run.id,manual.body.run.id);
+  const snapshotRecord=randomUUID();
+  assert.equal((await request('/api/backups/restores',{snapshotId:snapshotRecord},a.cookie)).status,403);
+  assert.equal((await request('/api/backups/restores',{snapshotId:snapshotRecord},admin.cookie)).status,404);
+  assert.equal((await request('/api/backups/restores',{snapshotId:'../x'},admin.cookie)).status,400);
+  const runId=randomUUID(),snapshotId='a'.repeat(64);
+  await pool.query(`INSERT INTO backup_runs(id,device_id,policy_revision,occurrence_key,status,snapshot_id) VALUES($1,$2,1,'fixture','succeeded',$3)`,[runId,linked.body.deviceId,snapshotId]);
+  await pool.query(`INSERT INTO backup_snapshots(id,device_id,run_id,snapshot_id,verified_at) VALUES($1,$2,$3,$4,now())`,[snapshotRecord,linked.body.deviceId,runId,snapshotId]);
+  const restore=await request('/api/backups/restores',{snapshotId:snapshotRecord,destinationPath:'C:\\Windows'},admin.cookie);
+  assert.equal(restore.status,200);assert.equal(restore.body.job.status,'queued');
+  const jobs=await request('/api/backups/restores',null,admin.cookie);assert.equal(jobs.body.jobs.length,1);assert.equal(jobs.body.jobs[0].destination_path,null);
  }finally{await new Promise(r=>server.close(r));await store.close();}
 });

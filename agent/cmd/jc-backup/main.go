@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"flag"
-	"fmt"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"jcevnzl/backup-agent/internal/service"
@@ -16,7 +15,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 )
 
 // Restic is bundled so the operator only needs one executable.
@@ -54,7 +52,7 @@ func main() {
 		resp, err := http.Get("http://127.0.0.1:18443/health")
 		if err == nil {
 			resp.Body.Close()
-			if resp.StatusCode == 200 {
+			if resp.StatusCode == 200 && resp.Header.Get("X-Isabella-Version") == ui.Version {
 				_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://127.0.0.1:18443").Start()
 				return
 			}
@@ -85,11 +83,20 @@ func main() {
 		workerDone := make(chan error, 1)
 		workerCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
+		uiReady := make(chan struct{})
+		uiDone := make(chan error, 1)
+		go func() { uiDone <- app.ServeReady(workerCtx, uiReady) }()
+		select {
+		case err := <-uiDone:
+			return err
+		case <-uiReady:
+		}
 		go func() {
 			s := service.Service{ConfigPath: *config, JournalPath: *journal, ResticPath: *restic, CacheDir: *cache}
 			workerDone <- s.Run(workerCtx)
 		}()
-		err = app.ServeReady(workerCtx, ready)
+		close(ready)
+		err = <-uiDone
 		cancel()
 		<-workerDone
 		return err
@@ -107,53 +114,4 @@ func main() {
 	if err := run(ctx, make(chan struct{})); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func installServiceLegacy() {
-	root := filepath.Join(os.Getenv("ProgramFiles"), "JC Enterprise", "Backup Agent")
-	data := filepath.Join(os.Getenv("ProgramData"), "JCEnterprise", "backup-agent")
-	_ = os.MkdirAll(root, 0700)
-	_ = os.MkdirAll(data, 0700)
-	self, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	target := filepath.Join(root, "jc-backup.exe")
-	src, err := os.ReadFile(self)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err = os.WriteFile(target, src, 0700); err != nil {
-		log.Fatal(err)
-	}
-	resticTarget := filepath.Join(root, "restic.exe")
-	if _, err = os.Stat(resticTarget); os.IsNotExist(err) {
-		if err = os.WriteFile(resticTarget, resticBinary, 0700); err != nil {
-			log.Fatal(err)
-		}
-	}
-	bin := fmt.Sprintf("\"%s\" -service -portal \"https://www.jcevnzl.space\" -restic \"%s\"", target, resticTarget)
-	_ = exec.Command("sc.exe", "stop", "JCEnterpriseIsabella").Run()
-	_ = exec.Command("sc.exe", "delete", "JCEnterpriseIsabella").Run()
-	if err = exec.Command("sc.exe", "create", "JCEnterpriseIsabella", "binPath=", bin, "start=", "delayed-auto", "DisplayName=", "JC Enterprise Isabella").Run(); err != nil {
-		log.Fatal(err)
-	}
-	_ = exec.Command("sc.exe", "description", "JCEnterpriseIsabella", "Servicio de respaldos Isabella para JC Enterprise").Run()
-	_ = exec.Command("sc.exe", "failure", "JCEnterpriseIsabella", "actions=", "restart/60000/restart/60000/0/0", "reset=", "86400").Run()
-	if err = exec.Command("sc.exe", "start", "JCEnterpriseIsabella").Run(); err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("Isabella instalada. Interfaz: http://127.0.0.1:18443")
-	for i := 0; i < 30; i++ {
-		resp, err := http.Get("http://127.0.0.1:18443/health")
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == 200 {
-				_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://127.0.0.1:18443").Start()
-				return
-			}
-		}
-		time.Sleep(time.Second)
-	}
-	log.Fatal("El servicio no respondió; revisa el registro de instalación.")
 }

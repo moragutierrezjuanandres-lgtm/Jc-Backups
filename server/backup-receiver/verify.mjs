@@ -2,14 +2,16 @@ import { createDecipheriv, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { repositoryPath } from './provision.mjs';
+import { retainVerified } from './retention.mjs';
 const execute = promisify(execFile);
 
-export async function verifySnapshot({binary,path,password,snapshotId,signal}) {
+export async function verifySnapshot({binary,path,password,snapshotId,signal,expectedTag}) {
   if(!/^[a-f0-9]{8,64}$/.test(snapshotId)) throw new Error('invalid_snapshot');
   const options={windowsHide:true,signal,timeout:12*3600000,maxBuffer:16*1024*1024,env:{...process.env,RESTIC_PASSWORD:password}};
   const {stdout}=await execute(binary,['-r',path,'snapshots','--json',snapshotId],options);
   const snapshots=JSON.parse(stdout);
   if(snapshots.length!==1||!snapshots[0].id.startsWith(snapshotId)) throw new Error('snapshot_missing');
+  if(expectedTag&&!snapshots[0].tags?.includes(expectedTag))throw new Error('snapshot_run_mismatch');
   await execute(binary,['-r',path,'check','--read-data'],options);
   return snapshots[0].id;
 }
@@ -27,7 +29,8 @@ export function startVerifier({pool,vaultKey,storageRoot,binary}) {
       const decipher=createDecipheriv('aes-256-gcm',vaultKey,Buffer.from(envelope.iv,'base64'));
       decipher.setAuthTag(Buffer.from(envelope.tag,'base64'));
       const secret=JSON.parse(Buffer.concat([decipher.update(Buffer.from(envelope.data,'base64')),decipher.final()]).toString());
-      const fullId=await verifySnapshot({binary,path:repositoryPath(storageRoot,device.repository_id),password:secret.key,snapshotId:row.snapshot_id,signal:abort.signal});
+      const runKey=row.occurrence_key.startsWith('scheduled:')?row.occurrence_key:row.id;
+      const fullId=await verifySnapshot({binary,path:repositoryPath(storageRoot,device.repository_id),password:secret.key,snapshotId:row.snapshot_id,signal:abort.signal,expectedTag:'isabella-run:'+runKey});
       const client=await pool.connect();
       try {
         await client.query('BEGIN');
@@ -36,6 +39,9 @@ export function startVerifier({pool,vaultKey,storageRoot,binary}) {
         await client.query(`UPDATE backup_alerts SET resolved_at=now() WHERE device_id=$1 AND resolved_at IS NULL AND kind IN ('failed','overdue','verification')`,[row.device_id]);
         await client.query('COMMIT');
       } catch(error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+      // Retention errors must not invalidate a copy that already passed verification.
+      try {await retainVerified({pool,binary,path:repositoryPath(storageRoot,device.repository_id),password:secret.key,deviceId:row.device_id,signal:abort.signal});}
+      catch(error){if(!abort.signal.aborted)console.error('Backup retention:',error.code||error.name);}
     } catch(error) {
       if(abort.signal.aborted) { await pool.query('UPDATE backup_runs SET verification_lease_until=NULL WHERE id=$1',[row.id]); return; }
       await pool.query(`UPDATE backup_runs SET status=CASE WHEN verification_attempts>=3 THEN 'failed' ELSE 'verifying' END,

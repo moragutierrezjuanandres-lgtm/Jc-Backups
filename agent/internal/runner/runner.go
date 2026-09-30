@@ -79,7 +79,9 @@ func (r Runner) Backup(ctx context.Context, run Run, policy Policy) journal.Resu
 		return journal.Result{ExitCode: -1, ErrorCode: "invalid_compression", Message: "compression must be auto or max"}
 	}
 	args := backupArgs(policy)
+	args = append(args, "--tag", "isabella-run:"+run.ID, "--tag", fmt.Sprintf("isabella-attempt:%d", run.Attempt))
 	cmd := exec.CommandContext(ctx, r.ResticPath, args...)
+	configurePriority(cmd)
 	repositoryURL := r.Repository.URL
 	if strings.HasPrefix(repositoryURL, "https://") {
 		repositoryURL = "rest:" + repositoryURL

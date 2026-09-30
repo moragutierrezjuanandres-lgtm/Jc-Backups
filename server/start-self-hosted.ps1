@@ -42,6 +42,15 @@ try {
     $connection.Connect('127.0.0.1', 8000)
     $receiverReady = $connection.Connected
 } catch {} finally { if ($connection) { $connection.Dispose() } }
+$receiverRestart = Join-Path $Root 'restart-receiver.request'
+if ($receiverReady -and (Test-Path $receiverRestart)) {
+    $listener = Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort 8000 -State Listen -ErrorAction Stop | Select-Object -First 1
+    $receiverProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $($listener.OwningProcess)"
+    if ($receiverProcess.Name -ne 'rest-server.exe' -or $receiverProcess.ExecutablePath -ne $RestServer) { throw 'El puerto 8000 pertenece a otro proceso; no se reiniciará.' }
+    Stop-Process -Id $listener.OwningProcess -Force -ErrorAction Stop
+    $receiverReady = $false
+}
+if (Test-Path $receiverRestart) { Remove-Item -LiteralPath $receiverRestart -Force }
 if (!$receiverReady) {
     $passwordFile = Join-Path $BackupRoot '.htpasswd'
     if (!(Test-Path $passwordFile)) { New-Item -ItemType File -Path $passwordFile | Out-Null }

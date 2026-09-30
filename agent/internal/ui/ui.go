@@ -34,6 +34,8 @@ type App struct {
 	}
 }
 
+const Version = "2026.09.30.2"
+
 //go:embed web/assets/*
 var assets embed.FS
 
@@ -81,18 +83,20 @@ func (a *App) Handler() http.Handler {
 	assetFS, _ := fs.Sub(assets, "web/assets")
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS))))
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Isabella-Version", Version)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"service":"isabella","status":"ok"}`))
 	})
 	mux.HandleFunc("GET /", a.page)
 	mux.HandleFunc("GET /status", a.status)
+	mux.HandleFunc("GET /telemetry", a.telemetry)
 	mux.HandleFunc("POST /login", a.login)
 	mux.HandleFunc("POST /enroll", a.enroll)
 	mux.HandleFunc("POST /policy", a.policy)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
 		if r.Host != "127.0.0.1:18443" && r.Host != "localhost:18443" {
 			http.Error(w, "bad host", 400)
 			return
