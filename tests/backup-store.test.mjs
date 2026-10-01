@@ -14,6 +14,19 @@ const repo=new BackupRepository(pool);
 const deviceId='00000000-0000-4000-8000-000000000001';
 await pool.query("INSERT INTO backup_devices(id,client_id,label) VALUES($1,'c1','Server')",[deviceId]);
 
+test('cancel queued work immediately; running work waits for agent acknowledgment and cannot retry',async()=>{
+ const queued=await repo.enqueue(deviceId,'cancel-queued',1);
+ assert.equal((await repo.cancel(queued.id)).status,'cancelled');
+ const running=await repo.enqueue(deviceId,'cancel-running',1);const claimed=await repo.claim(deviceId);assert.equal(claimed.id,running.id);
+ assert.equal((await repo.cancel(running.id)).status,'running');
+ assert.equal((await repo.control(deviceId,running.id)).cancelRequested,true);
+ await assert.rejects(repo.control('00000000-0000-4000-8000-000000000002',running.id));
+ const ended=await repo.appendEvent(deviceId,{runId:running.id,attempt:1,sequence:1,kind:'result',payload:{exitCode:-1,errorCode:'cancelled'}});
+ assert.equal(ended.status,'cancelled');assert.equal(ended.retryAt,null);assert.equal(await repo.claim(deviceId),null);
+ const late=await repo.appendEvent(deviceId,{runId:running.id,attempt:1,sequence:2,kind:'result',payload:{exitCode:0,snapshotId:'late'}});
+ assert.equal(late.status,'cancelled');
+});
+
 test('enqueue is idempotent and an atomically claimed run is leased only once',async()=>{
   const first=await repo.enqueue(deviceId,'scheduled:2026-09-26',1);
   const second=await repo.enqueue(deviceId,'scheduled:2026-09-26',1);

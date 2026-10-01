@@ -88,7 +88,14 @@ func (c Client) request(ctx context.Context, method, path string, body any, out 
 	return nil
 }
 func (c Client) Heartbeat(ctx context.Context) error {
-	return c.request(ctx, "POST", "/api/backup-agent/heartbeat", map[string]any{}, nil)
+	return c.request(ctx, "POST", "/api/backup-agent/heartbeat", map[string]any{"supportsCancel": true}, nil)
+}
+func (c Client) CancelRequested(ctx context.Context, id string) (bool, error) {
+	var response struct {
+		CancelRequested bool `json:"cancelRequested"`
+	}
+	err := c.request(ctx, "GET", "/api/backup-agent/run-control?runId="+url.QueryEscape(id), nil, &response)
+	return response.CancelRequested, err
 }
 func (c Client) Telemetry(ctx context.Context, id string, attempt int, p runner.Progress) error {
 	file := ""

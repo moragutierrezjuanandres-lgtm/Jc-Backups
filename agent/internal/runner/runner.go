@@ -133,6 +133,13 @@ func (r Runner) Backup(ctx context.Context, run Run, policy Policy) journal.Resu
 		result.ErrorCode = "timeout_or_cancelled"
 		result.Message = ctx.Err().Error()
 		result.ExitCode = -1
+		// Remove only locks Restic itself identifies as stale after process termination.
+		cleanupCtx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+		cleanup := exec.CommandContext(cleanupCtx, r.ResticPath, "unlock")
+		cleanup.Env = cmd.Env
+		configurePriority(cleanup)
+		_ = cleanup.Run()
+		stop()
 	}
 	return result
 }

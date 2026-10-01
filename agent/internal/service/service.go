@@ -141,7 +141,7 @@ func (s Service) runOfflineDue(ctx context.Context, cfg Config, j *journal.Journ
 		s.execute(ctx, cfg, j, key, 1)
 		return
 	}
-	if state.Attempt == 1 && state.Result != nil && state.Result.ExitCode != 0 && time.Since(state.FinishedAt) >= 15*time.Minute {
+	if state.Attempt == 1 && state.Result != nil && state.Result.ErrorCode != "cancelled" && state.Result.ExitCode != 0 && time.Since(state.FinishedAt) >= 15*time.Minute {
 		s.execute(ctx, cfg, j, key, 2)
 	}
 }
@@ -155,6 +155,9 @@ func (s Service) execute(ctx context.Context, cfg Config, j *journal.Journal, id
 	r := runner.Run{ID: id, DeviceID: cfg.DeviceID, PolicyRevision: cfg.Policy.Revision, Attempt: attempt}
 	engine := runner.Runner{ResticPath: s.ResticPath, Repository: cfg.Repository, CacheDir: s.CacheDir}
 	api := control.Client{BaseURL: cfg.PortalURL, Token: cfg.Token}
+	backupCtx, cancelBackup := context.WithCancel(ctx)
+	defer cancelBackup()
+	cancelled := false
 	for _, event := range j.Pending() {
 		if event.RunID != id || event.Attempt != attempt || event.Kind != "start" {
 			continue
@@ -178,10 +181,17 @@ func (s Service) execute(ctx context.Context, cfg Config, j *journal.Journal, id
 		defer close(done)
 		ticker := time.NewTicker(20 * time.Second)
 		defer ticker.Stop()
+		controlTicker := time.NewTicker(5 * time.Second)
+		defer controlTicker.Stop()
 		for {
 			select {
 			case <-uploadCtx.Done():
 				return
+			case <-controlTicker.C:
+				if checkCancellation(uploadCtx, api, id, cancelBackup) {
+					cancelled = true
+					return
+				}
 			case <-ticker.C:
 				heartbeatCtx, stop := context.WithTimeout(uploadCtx, 3*time.Second)
 				_ = api.Heartbeat(heartbeatCtx)
@@ -204,9 +214,14 @@ func (s Service) execute(ctx context.Context, cfg Config, j *journal.Journal, id
 		default:
 		}
 	}
-	result := engine.Backup(ctx, r, *cfg.Policy)
+	result := engine.Backup(backupCtx, r, *cfg.Policy)
 	cancelUpload()
 	<-done
+	if cancelled {
+		result.ErrorCode = "cancelled"
+		result.Message = "Detenido desde el portal"
+		result.ExitCode = -1
+	}
 	_ = j.StoreResult(id, attempt, result)
 }
 func latestOccurrence(p runner.Policy, now time.Time) (string, bool) {
@@ -245,3 +260,14 @@ func latestOccurrence(p runner.Policy, now time.Time) (string, bool) {
 }
 
 var ErrNotConfigured = errors.New("device is not enrolled")
+
+func checkCancellation(ctx context.Context, api control.Client, id string, cancel context.CancelFunc) bool {
+	checkCtx, stop := context.WithTimeout(ctx, 3*time.Second)
+	defer stop()
+	requested, err := api.CancelRequested(checkCtx, id)
+	if err != nil || !requested {
+		return false
+	}
+	cancel()
+	return true
+}
