@@ -129,6 +129,21 @@ func (r Runner) Backup(ctx context.Context, run Run, policy Policy) journal.Resu
 		}
 	}
 	result := parseOutput(output.Bytes(), code)
+	if result.Message == "" && code != 0 {
+		detail := parseOutput(stderr.Bytes(), code)
+		result.Message = detail.Message
+		if result.Message == "" {
+			result.Message = strings.TrimSpace(stderr.String())
+		}
+	}
+	for _, secret := range []string{r.Repository.Key, r.Repository.Password} {
+		if secret != "" {
+			result.Message = strings.ReplaceAll(result.Message, secret, "[redacted]")
+		}
+	}
+	if len(result.Message) > 1000 {
+		result.Message = result.Message[:1000]
+	}
 	if ctx.Err() != nil {
 		result.ErrorCode = "timeout_or_cancelled"
 		result.Message = ctx.Err().Error()
@@ -169,6 +184,7 @@ func parseOutput(output []byte, code int) journal.Result {
 			TotalBytesProcessed int64  `json:"total_bytes_processed"`
 			DataAdded           int64  `json:"data_added"`
 			Error               string `json:"error"`
+			Message             string `json:"message"`
 		}
 		if json.Unmarshal(scanner.Bytes(), &msg) != nil {
 			continue
@@ -180,6 +196,9 @@ func parseOutput(output []byte, code int) journal.Result {
 		}
 		if msg.MessageType == "error" && result.Message == "" {
 			result.Message = msg.Error
+		}
+		if msg.MessageType == "exit_error" && result.Message == "" {
+			result.Message = msg.Message
 		}
 	}
 	if code == 0 && result.SnapshotID == "" {

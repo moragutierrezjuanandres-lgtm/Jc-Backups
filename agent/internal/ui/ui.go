@@ -34,7 +34,7 @@ type App struct {
 	}
 }
 
-const Version = "2026.10.01.1"
+const Version = "2026.10.01.2"
 
 //go:embed web/assets/*
 var assets embed.FS
