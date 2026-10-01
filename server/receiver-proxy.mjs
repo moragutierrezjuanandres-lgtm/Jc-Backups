@@ -16,7 +16,7 @@ function safePath(pathname) {
   const parts = decoded.split('/').filter(Boolean);
   if (!parts.length || !REPOSITORY.test(parts[0])) return null;
   if (parts.some(part => part === '.' || part === '..' || forbidden.has(part.toLowerCase()) || part.includes('\\') || /[\x00-\x1f]/.test(part))) return null;
-  return `/${parts.map(part => encodeURIComponent(part)).join('/')}`;
+  return `/${parts.map(part => encodeURIComponent(part)).join('/')}${decoded.endsWith('/')?'/':''}`;
 }
 
 export function createReceiverProxy({ host = '127.0.0.1', port = 8000,canReceive=null,receiving=new Map() } = {}) {
@@ -33,6 +33,7 @@ export function createReceiverProxy({ host = '127.0.0.1', port = 8000,canReceive
     catch {return reject(res,503,'No se pudo comprobar el estado del receptor.');}
     const proxy = http.request({ host, port, method: req.method, path: `${path}${parsed.search}`, headers: {
       authorization: req.headers.authorization,
+      ...(req.headers.accept ? {accept:req.headers.accept} : {}),
       'content-type': req.headers['content-type'] || 'application/octet-stream',
       ...(req.headers['content-length'] ? {'content-length': req.headers['content-length']} : {}),
       'user-agent': 'JCEnterprise-receiver-proxy/1',
