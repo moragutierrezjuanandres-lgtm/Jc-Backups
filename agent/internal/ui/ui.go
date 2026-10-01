@@ -34,7 +34,7 @@ type App struct {
 	}
 }
 
-const Version = "2026.10.01.3"
+const Version = "2026.10.01.4"
 
 //go:embed web/assets/*
 var assets embed.FS
@@ -172,7 +172,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: "jc_local_setup", Value: a.Session, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 900})
-	http.Redirect(w, r, "/?message="+url.QueryEscape("Usuario validado por el portal. Introduce el código de vinculación."), 303)
+	message := "Usuario validado por el portal. Introduce el código de vinculación."
+	if cfg, err := service.LoadConfig(a.ConfigPath); err == nil && cfg.DeviceID != "" {
+		message = "Sesión iniciada. El equipo ya está vinculado; puedes guardar las carpetas y el horario."
+	}
+	http.Redirect(w, r, "/?message="+url.QueryEscape(message), 303)
 }
 func (a *App) enroll(w http.ResponseWriter, r *http.Request) {
 	if !a.guard(w, r) {
