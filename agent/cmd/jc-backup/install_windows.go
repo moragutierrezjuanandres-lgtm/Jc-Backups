@@ -40,6 +40,10 @@ func installService() {
 	}
 	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://127.0.0.1:18443").Start()
 }
+func installerServiceConfig() mgr.Config {
+	// CreateService supplies this default; UpdateConfig does not, and rejects zero.
+	return mgr.Config{ServiceType: windows.SERVICE_WIN32_OWN_PROCESS, ErrorControl: mgr.ErrorNormal, DisplayName: "JC Enterprise Isabella", Description: "Respaldos comprimidos y programados Isabella", StartType: mgr.StartAutomatic, DelayedAutoStart: true}
+}
 func performInstall() error {
 	root := filepath.Join(os.Getenv("ProgramFiles"), "JC Enterprise", "Backup Agent")
 	if err := os.MkdirAll(root, 0700); err != nil {
@@ -95,7 +99,7 @@ func performInstall() error {
 	if err = os.WriteFile(restic, resticBinary, 0700); err != nil {
 		return err
 	}
-	config := mgr.Config{DisplayName: "JC Enterprise Isabella", Description: "Respaldos comprimidos y programados Isabella", StartType: mgr.StartAutomatic, DelayedAutoStart: true}
+	config := installerServiceConfig()
 	if installed == nil {
 		installed, err = manager.CreateService("JCEnterpriseIsabella", target, config, "-service", "-restic", restic)
 		if err != nil {
@@ -105,14 +109,14 @@ func performInstall() error {
 	} else {
 		config.BinaryPathName = fmt.Sprintf("%q -service -restic %q", target, restic)
 		if err = installed.UpdateConfig(config); err != nil {
-			return err
+			return fmt.Errorf("actualizar configuración del servicio: %w", err)
 		}
 	}
 	if err = installed.SetRecoveryActions([]mgr.RecoveryAction{{Type: mgr.ServiceRestart, Delay: time.Minute}, {Type: mgr.ServiceRestart, Delay: time.Minute}}, 86400); err != nil {
-		return err
+		return fmt.Errorf("configurar reinicio automático: %w", err)
 	}
 	if err = installed.Start(); err != nil {
-		return err
+		return fmt.Errorf("iniciar servicio: %w", err)
 	}
 	client := http.Client{Timeout: time.Second}
 	for i := 0; i < 30; i++ {
