@@ -55,7 +55,8 @@ export async function startServer(config,store=new PostgresStore(config.connecti
     if(backupReceiverConfigured)await recoverDirectoryChanges({pool:store.pool,storageRoot});
     const backupDirectory=backupReceiverConfigured?createDirectoryManager({pool:store.pool,storageRoot,protectedRoots:[resolve('.'),resolve(storageRoot,'../pgdata')],isReceiving:id=>receiving.has(id)||activeRepositories.has(id)}):null;
     const receiverProxy=createReceiverProxy({port:Number(process.env.JC_BACKUP_RECEIVER_PORT||8000),receiving,canReceive:backupReceiverConfigured?async id=>{const device=(await store.pool.query('SELECT storage_moving FROM backup_devices WHERE repository_id=$1',[id])).rows[0];return !device?.storage_moving;}:null});
-    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured,receiverProxy,backupDirectory});
+    const installerPath=process.env.JC_INSTALLER_PATH||(storageRoot?resolve(storageRoot,'../downloads/Isabella-Setup.exe'):null);
+    const app=createCloudApp({store,vaultKey:config.vaultKey,origins:config.origins,secureCookie:true,importToken:'',backupAuth,backupRepository,backupReceiverConfigured,receiverProxy,backupDirectory,installerPath});
     server=await new Promise((resolve,reject)=>{
       const instance=app.listen(config.port,config.host,()=>resolve(instance));
       instance.once('error',reject);
